@@ -45,8 +45,11 @@
 
 #pragma once
 
+#ifndef _GAMECLIENT_COLOR_H_
+#define _GAMECLIENT_COLOR_H_
 #ifndef __COLOR_H_
 #define __COLOR_H_
+#endif
 
 // SYSTEM INCLUDES ////////////////////////////////////////////////////////////
 
@@ -66,28 +69,21 @@ typedef Int Color;
 
 // EXTERNALS //////////////////////////////////////////////////////////////////
 
-inline Color GameMakeColor( UnsignedByte red, UnsignedByte green, UnsignedByte blue, UnsignedByte alpha )
+inline Color GameMakeColor( UnsignedByte channelRed, UnsignedByte channelGreen, UnsignedByte channelBlue, UnsignedByte channelAlpha )
 {
-	return (alpha << 24) | (red << 16) | (green << 8) | (blue); 
+	return (channelAlpha << 24) | (channelRed << 16) | (channelGreen << 8) | (channelBlue); 
 }
 
 extern void GameGetColorComponents( Color color,
-																	  UnsignedByte *red,
-																	  UnsignedByte *green,
-																	  UnsignedByte *blue,
-																	  UnsignedByte *alpha );
-
-// Put on ice until later - M Lorenzen
-//extern void GameGetColorComponentsWithCheatSpy( Color color,
-//																	  UnsignedByte *red,
-//																	  UnsignedByte *green,
-//																	  UnsignedByte *blue,
-//																	  UnsignedByte *alpha );
-
-
-extern void GameGetColorComponentsReal( Color color, Real *red, Real *green, Real *blue, Real *alpha );
+																	  UnsignedByte *channelRed,
+																	  UnsignedByte *channelGreen,
+																	  UnsignedByte *channelBlue,
+																	  UnsignedByte *channelAlpha );
+extern void GameGetColorComponentsReal( Color color, Real *channelRed, Real *channelGreen, Real *channelBlue, Real *channelAlpha );
 
 extern Color GameDarkenColor( Color color, Int percent = 10 );
 
-#endif // __COLOR_H_
+#endif // _GAMECLIENT_COLOR_H_
+
+
 

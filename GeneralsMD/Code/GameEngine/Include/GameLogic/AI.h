@@ -312,6 +312,10 @@ class Team;
 class Weapon;
 
 // Note - written out in save/load xfer and .map files, don't change these numbers.  
+// AI_PASSIVE conflicts with Windows SDK ws2tcpip.h define (0x00000001)
+#ifdef AI_PASSIVE
+#undef AI_PASSIVE
+#endif
 enum AttitudeType { AI_SLEEP = -2, AI_PASSIVE=-1, AI_NORMAL=0, AI_ALERT=1, AI_AGGRESSIVE=2, AI_INVALID=3 };		///< AI "attitude" behavior modifiers
 
 enum CommandSourceType;

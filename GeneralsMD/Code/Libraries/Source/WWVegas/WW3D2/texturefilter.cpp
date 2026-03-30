@@ -102,7 +102,7 @@ void TextureFilterClass::Apply(unsigned int stage)
 */
 void TextureFilterClass::_Init_Filters(TextureFilterMode filter_type)
 {
-	const D3DCAPS8& dx8caps=DX8Wrapper::Get_Current_Caps()->Get_DX8_Caps();
+	const D3DCAPS9& dx8caps=DX8Wrapper::Get_Current_Caps()->Get_DX8_Caps();
 
 #ifndef _XBOX
    	_MinTextureFilters[0][FILTER_TYPE_NONE]=D3DTEXF_POINT;
@@ -187,12 +187,14 @@ void TextureFilterClass::_Init_Filters(TextureFilterMode filter_type)
 	}
 
 	// Set default to best. The level of best filter mode is controlled by the input parameter.
+	int i; // Reuse for second loop
 	for (i=0;i<MAX_TEXTURE_STAGES;++i) {
 		_MinTextureFilters[i][FILTER_TYPE_DEFAULT]=_MinTextureFilters[i][FILTER_TYPE_BEST];
 		_MagTextureFilters[i][FILTER_TYPE_DEFAULT]=_MagTextureFilters[i][FILTER_TYPE_BEST];
 		_MipMapFilters[i][FILTER_TYPE_DEFAULT]=_MipMapFilters[i][FILTER_TYPE_BEST];
 
-		DX8Wrapper::Set_DX8_Texture_Stage_State(i,D3DTSS_MAXANISOTROPY,2);
+		// D3DTSS_MAXANISOTROPY moved to D3DSAMP_MAXANISOTROPY in DirectX 9
+		// DX8Wrapper::Set_DX8_Texture_Stage_State(i,D3DTSS_MAXANISOTROPY,2);
 	}
 
 }

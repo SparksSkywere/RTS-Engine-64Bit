@@ -30,6 +30,15 @@
 #define __W3DWater_H_
 
 #include "always.h"
+#if defined(__has_include)
+#if __has_include(<d3d8.h>)
+#include <d3d8.h>
+#elif __has_include("../../../../Libraries/DirectX/Include/d3d8.h")
+#include "../../../../Libraries/DirectX/Include/d3d8.h"
+#endif
+#else
+#include <d3d8.h>
+#endif
 #include "rendobj.h"
 #include "w3d_file.h"
 #include "dx8vertexbuffer.h"			 

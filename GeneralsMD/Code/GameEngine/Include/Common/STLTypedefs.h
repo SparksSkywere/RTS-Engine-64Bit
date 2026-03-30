@@ -58,6 +58,8 @@ class STLSpecialAlloc;
 #include "Common/UnicodeString.h"
 #include "Common/GameCommon.h"
 #include "Common/GameMemory.h"
+#include "Lib/BaseType.h"
+#include "Common/GameType.h"
 
 //-----------------------------------------------------------------------------
 
@@ -77,8 +79,14 @@ enum DrawableID;
 #include <set>
 #include <stack>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
+#if defined(_MSC_VER)
+#ifndef hash_map
+#define hash_map unordered_map
+#endif
+#endif
 // List of AsciiStrings to allow list of ThingTemplate names from INI and such
 typedef std::list< AsciiString >													AsciiStringList;
 typedef std::list< AsciiString >::iterator								AsciiStringListIterator;
@@ -223,3 +231,5 @@ namespace rts
 }
 
 #endif /* __STLTYPEDEFS_H__ */
+
+

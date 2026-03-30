@@ -38,7 +38,17 @@
 #include "Common/GameEngine.h"
 #include "GameLogic/GameLogic.h"
 #include "GameNetwork/NetworkInterface.h"
+#if defined(__has_include)
+#if __has_include("MilesAudioDevice/MilesAudioManager.h") && __has_include("MSS/MSS.h")
+#define HAVE_MILES_AUDIO 1
 #include "MilesAudioDevice/MilesAudioManager.h"
+#else
+#define HAVE_MILES_AUDIO 0
+#endif
+#else
+#include "MilesAudioDevice/MilesAudioManager.h"
+#define HAVE_MILES_AUDIO 1
+#endif
 #include "Win32Device/Common/Win32BIGFileSystem.h"
 #include "Win32Device/Common/Win32LocalFileSystem.h"
 #include "W3DDevice/Common/W3DModuleFactory.h"
@@ -102,6 +112,10 @@ inline ParticleSystemManager* Win32GameEngine::createParticleSystemManager( void
 inline NetworkInterface *Win32GameEngine::createNetwork( void ) { return NetworkInterface::createNetwork(); }
 inline Radar *Win32GameEngine::createRadar( void ) { return NEW W3DRadar; }
 inline WebBrowser *Win32GameEngine::createWebBrowser( void ) { return NEW CComObject<W3DWebBrowser>; }
+#if HAVE_MILES_AUDIO
 inline AudioManager *Win32GameEngine::createAudioManager( void ) { return NEW MilesAudioManager; }
+#else
+inline AudioManager *Win32GameEngine::createAudioManager( void ) { return NULL; }
+#endif
  
 #endif  // end __WIN32GAMEENGINE_H_

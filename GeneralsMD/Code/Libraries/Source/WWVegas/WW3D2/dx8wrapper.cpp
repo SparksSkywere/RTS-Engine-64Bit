@@ -71,7 +71,7 @@
 #include "missingtexture.h"
 #include "thread.h"
 #include <stdio.h>
-#include <D3dx8core.h>
+#include <D3dx9core.h>
 #include "pot.h"
 #include "wwprofile.h"
 #include "ffactory.h"
@@ -134,19 +134,19 @@ Vector3							DX8Wrapper::Ambient_Color;
 bool								DX8Wrapper::world_identity;
 unsigned							DX8Wrapper::RenderStates[256];
 unsigned							DX8Wrapper::TextureStageStates[MAX_TEXTURE_STAGES][32];
-IDirect3DBaseTexture8 *		DX8Wrapper::Textures[MAX_TEXTURE_STAGES];
+IDirect3DBaseTexture9 *		DX8Wrapper::Textures[MAX_TEXTURE_STAGES];
 RenderStateStruct				DX8Wrapper::render_state;
 unsigned							DX8Wrapper::render_state_changed;
 
 bool								DX8Wrapper::FogEnable									= false;
 D3DCOLOR							DX8Wrapper::FogColor										= 0;
 
-IDirect3D8 *					DX8Wrapper::D3DInterface								= NULL;
-IDirect3DDevice8 *			DX8Wrapper::D3DDevice									= NULL;
-IDirect3DSurface8 *			DX8Wrapper::CurrentRenderTarget						= NULL;
-IDirect3DSurface8 *			DX8Wrapper::CurrentDepthBuffer						= NULL;
-IDirect3DSurface8 *			DX8Wrapper::DefaultRenderTarget						= NULL;
-IDirect3DSurface8 *			DX8Wrapper::DefaultDepthBuffer						= NULL;
+IDirect3D9 *					DX8Wrapper::D3DInterface								= NULL;
+IDirect3DDevice9 *			DX8Wrapper::D3DDevice									= NULL;
+IDirect3DSurface9 *			DX8Wrapper::CurrentRenderTarget						= NULL;
+IDirect3DSurface9 *			DX8Wrapper::CurrentDepthBuffer						= NULL;
+IDirect3DSurface9 *			DX8Wrapper::DefaultRenderTarget						= NULL;
+IDirect3DSurface9 *			DX8Wrapper::DefaultDepthBuffer						= NULL;
 bool								DX8Wrapper::IsRenderToTexture							= false;
 
 unsigned							DX8Wrapper::matrix_changes								= 0;
@@ -172,7 +172,7 @@ DX8Caps*							DX8Wrapper::CurrentCaps = 0;
 // Hack test... this disables rendering of batches of too few polygons.
 unsigned							DX8Wrapper::DrawPolygonLowBoundLimit=0;
 
-D3DADAPTER_IDENTIFIER8		DX8Wrapper::CurrentAdapterIdentifier;
+D3DADAPTER_IDENTIFIER9		DX8Wrapper::CurrentAdapterIdentifier;
 
 unsigned long DX8Wrapper::FrameCount = 0;
 
@@ -198,7 +198,7 @@ static DynamicVectorClass<StringClass>					_RenderDeviceShortNameTable;
 static DynamicVectorClass<RenderDeviceDescClass>	_RenderDeviceDescriptionTable;
 
 
-typedef IDirect3D8* (WINAPI *Direct3DCreate8Type) (UINT SDKVersion);
+typedef IDirect3D9* (WINAPI *Direct3DCreate8Type) (UINT SDKVersion);
 Direct3DCreate8Type	Direct3DCreate8Ptr = NULL;
 HINSTANCE D3D8Lib = NULL;
 
@@ -249,7 +249,7 @@ bool DX8Wrapper::Init(void * hwnd, bool lite)
 	WWASSERT(!IsInitted);
 
 	// zero memory
-	memset(Textures,0,sizeof(IDirect3DBaseTexture8*)*MAX_TEXTURE_STAGES);
+	memset(Textures,0,sizeof(IDirect3DBaseTexture9*)*MAX_TEXTURE_STAGES);
 	memset(RenderStates,0,sizeof(unsigned)*256);
 	memset(TextureStageStates,0,sizeof(unsigned)*32*MAX_TEXTURE_STAGES);
 	memset(Vertex_Shader_Constants,0,sizeof(Vector4)*MAX_VERTEX_SHADER_CONSTANTS);
@@ -326,7 +326,7 @@ void DX8Wrapper::Shutdown(void)
 {
 	if (D3DDevice) {
 
-		Set_Render_Target ((IDirect3DSurface8 *)NULL);
+		Set_Render_Target ((IDirect3DSurface9 *)NULL);
 		Release_Device();
 	}
 
@@ -394,7 +394,7 @@ inline DWORD F2DW(float f) { return *((unsigned*)&f); }
 void DX8Wrapper::Set_Default_Global_Render_States(void)
 {
 	DX8_THREAD_ASSERT();
-	const D3DCAPS8 &caps = Get_Current_Caps()->Get_DX8_Caps();
+	const D3DCAPS9 &caps = Get_Current_Caps()->Get_DX8_Caps();
 
 	Set_DX8_Render_State(D3DRS_RANGEFOGENABLE, (caps.RasterCaps & D3DPRASTERCAPS_FOGRANGE) ? TRUE : FALSE);
 	Set_DX8_Render_State(D3DRS_FOGTABLEMODE, D3DFOG_NONE);
@@ -502,7 +502,7 @@ bool DX8Wrapper::Create_Device(void)
 {
 	WWASSERT(D3DDevice==NULL);	// for now, once you've created a device, you're stuck with it!
 
-	D3DCAPS8 caps;
+	D3DCAPS9 caps;
 	if 
 	(
 		FAILED
@@ -519,7 +519,7 @@ bool DX8Wrapper::Create_Device(void)
 		return false;
 	}
 
-	::ZeroMemory(&CurrentAdapterIdentifier, sizeof(D3DADAPTER_IDENTIFIER8));
+	::ZeroMemory(&CurrentAdapterIdentifier, sizeof(D3DADAPTER_IDENTIFIER9));
 	
 	if
 	(
@@ -715,8 +715,8 @@ void DX8Wrapper::Enumerate_Devices()
 	int adapter_count = D3DInterface->GetAdapterCount();
 	for (int adapter_index=0; adapter_index<adapter_count; adapter_index++) {
 
-		D3DADAPTER_IDENTIFIER8 id;
-		::ZeroMemory(&id, sizeof(D3DADAPTER_IDENTIFIER8));
+		D3DADAPTER_IDENTIFIER9 id;
+		::ZeroMemory(&id, sizeof(D3DADAPTER_IDENTIFIER9));
 		HRESULT res = D3DInterface->GetAdapterIdentifier(adapter_index,D3DENUM_NO_WHQL_LEVEL,&id);
 
 		if (res == D3D_OK) {
@@ -1812,7 +1812,7 @@ void DX8Wrapper::Clear(bool clear_color, bool clear_z_stencil, const Vector3 &co
 								_PresentParameters.AutoDepthStencilFormat == D3DFMT_D24S8 ||
 								_PresentParameters.AutoDepthStencilFormat == D3DFMT_D24X4S4);*/
 	bool has_stencil=false;
-	IDirect3DSurface8* depthbuffer;
+	IDirect3DSurface9* depthbuffer;
 
 	_Get_D3D_Device8()->GetDepthStencilSurface(&depthbuffer);
 	number_of_DX8_calls++;
@@ -1842,7 +1842,7 @@ void DX8Wrapper::Clear(bool clear_color, bool clear_z_stencil, const Vector3 &co
 	}
 }
 
-void DX8Wrapper::Set_Viewport(CONST D3DVIEWPORT8* pViewport)
+void DX8Wrapper::Set_Viewport(CONST D3DVIEWPORT9* pViewport)
 {
 	DX8_THREAD_ASSERT();
 	DX8CALL(SetViewport(pViewport));
@@ -2281,7 +2281,7 @@ void DX8Wrapper::Apply_Render_State_Changes()
 				if (render_state.LightEnable[index]) {
 #ifdef MESH_RENDER_SNAPSHOT_ENABLED		
 					if ( WW3D::Is_Snapshot_Activated() ) {
-						D3DLIGHT8 * light = &(render_state.Lights[index]);
+						D3DLIGHT9 * light = &(render_state.Lights[index]);
 						static char * _light_types[] = { "Unknown", "Point","Spot", "Directional" };
 						WWASSERT((light->Type >= 0) && (light->Type <= 3));					
 
@@ -2377,7 +2377,7 @@ void DX8Wrapper::Apply_Render_State_Changes()
 	SNAPSHOT_SAY(("DX8Wrapper::Apply_Render_State_Changes() - finished\n"));
 }
 
-IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
+IDirect3DTexture9 * DX8Wrapper::_Create_DX8_Texture
 (
 	unsigned int width,
 	unsigned int height,
@@ -2389,7 +2389,7 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 {
 	DX8_THREAD_ASSERT();
 	DX8_Assert();
-	IDirect3DTexture8 *texture = NULL;
+	IDirect3DTexture9 *texture = NULL;
 
 	// Paletted textures not supported!
 	WWASSERT(format!=D3DFMT_P8);
@@ -2498,7 +2498,7 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 	return texture;
 }
 
-IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
+IDirect3DTexture9 * DX8Wrapper::_Create_DX8_Texture
 (
 	const char *filename,
 	MipCountType mip_level_count
@@ -2506,7 +2506,7 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 {
 	DX8_THREAD_ASSERT();
 	DX8_Assert();
-	IDirect3DTexture8 *texture = NULL;
+	IDirect3DTexture9 *texture = NULL;
 
 	// NOTE: If the original image format is not supported as a texture format, it will
 	// automatically be converted to an appropriate format.
@@ -2543,15 +2543,15 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 	return texture;
 }
 
-IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
+IDirect3DTexture9 * DX8Wrapper::_Create_DX8_Texture
 (
-	IDirect3DSurface8 *surface,
+	IDirect3DSurface9 *surface,
 	MipCountType mip_level_count
 )
 {
 	DX8_THREAD_ASSERT();
 	DX8_Assert();
-	IDirect3DTexture8 *texture = NULL;
+	IDirect3DTexture9 *texture = NULL;
 
 	D3DSURFACE_DESC surface_desc;
 	::ZeroMemory(&surface_desc, sizeof(D3DSURFACE_DESC));
@@ -2563,7 +2563,7 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 	texture = _Create_DX8_Texture(surface_desc.Width, surface_desc.Height, format, mip_level_count);
 
 	// Copy the surface to the texture
-	IDirect3DSurface8 *tex_surface = NULL;
+	IDirect3DSurface9 *tex_surface = NULL;
 	texture->GetSurfaceLevel(0, &tex_surface);
 	DX8_ErrorCode(D3DXLoadSurfaceFromSurface(tex_surface, NULL, NULL, surface, NULL, NULL, D3DX_FILTER_BOX, 0));
 	tex_surface->Release();
@@ -2581,7 +2581,7 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 /*!
  * KJM create depth stencil texture
  */
-IDirect3DTexture8 * DX8Wrapper::_Create_DX8_ZTexture
+IDirect3DTexture9 * DX8Wrapper::_Create_DX8_ZTexture
 (
 	unsigned int width,
 	unsigned int height,
@@ -2592,7 +2592,7 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_ZTexture
 {
 	DX8_THREAD_ASSERT();
 	DX8_Assert();
-	IDirect3DTexture8* texture = NULL;
+	IDirect3DTexture9* texture = NULL;
 
 	D3DFORMAT zfmt=WW3DZFormat_To_D3DFormat(zformat);
 
@@ -2877,12 +2877,12 @@ IDirect3DVolumeTexture8* DX8Wrapper::_Create_DX8_Volume_Texture
 }
 
 
-IDirect3DSurface8 * DX8Wrapper::_Create_DX8_Surface(unsigned int width, unsigned int height, WW3DFormat format)
+IDirect3DSurface9 * DX8Wrapper::_Create_DX8_Surface(unsigned int width, unsigned int height, WW3DFormat format)
 {
 	DX8_THREAD_ASSERT();
 	DX8_Assert();
 
-	IDirect3DSurface8 *surface = NULL;
+	IDirect3DSurface9 *surface = NULL;
 
 	// Paletted surfaces not supported!
 	WWASSERT(format!=D3DFMT_P8);
@@ -2892,7 +2892,7 @@ IDirect3DSurface8 * DX8Wrapper::_Create_DX8_Surface(unsigned int width, unsigned
 	return surface;
 }
 
-IDirect3DSurface8 * DX8Wrapper::_Create_DX8_Surface(const char *filename_)
+IDirect3DSurface9 * DX8Wrapper::_Create_DX8_Surface(const char *filename_)
 {
 	DX8_THREAD_ASSERT();
 	DX8_Assert();
@@ -2906,7 +2906,7 @@ IDirect3DSurface8 * DX8Wrapper::_Create_DX8_Surface(const char *filename_)
 	// the file data and use D3DXLoadSurfaceFromFile. This is a horrible hack, but it saves us
 	// having to write file loaders. Will fix this when D3DX provides us with the right functions.
 	// Create a surface the size of the file image data
-	IDirect3DSurface8 *surface = NULL;
+	IDirect3DSurface9 *surface = NULL;
 
 	{
 
@@ -2975,7 +2975,7 @@ void DX8Wrapper::Compute_Caps(WW3DFormat display_format)
 }
 
 
-void DX8Wrapper::Set_Light(unsigned index, const D3DLIGHT8* light)
+void DX8Wrapper::Set_Light(unsigned index, const D3DLIGHT9* light)
 {
 	if (light) {
 		render_state.Lights[index]=*light;
@@ -2989,9 +2989,9 @@ void DX8Wrapper::Set_Light(unsigned index, const D3DLIGHT8* light)
 
 void DX8Wrapper::Set_Light(unsigned index,const LightClass &light)
 {
-	D3DLIGHT8 dlight;
+	D3DLIGHT9 dlight;
 	Vector3 temp;
-	memset(&dlight,0,sizeof(D3DLIGHT8));
+	memset(&dlight,0,sizeof(D3DLIGHT9));
 
 	switch (light.Get_Type())
 	{
@@ -3084,10 +3084,10 @@ void DX8Wrapper::Set_Light_Environment(LightEnvironmentClass* light_env)
 #endif
 		}
 
-		D3DLIGHT8 light;		
+		D3DLIGHT9 light;		
 		for (int l=0;l<light_count;++l) {
 			
-			::ZeroMemory(&light, sizeof(D3DLIGHT8));
+			::ZeroMemory(&light, sizeof(D3DLIGHT9));
 			
 			light.Type=D3DLIGHT_DIRECTIONAL;
 			(Vector3&)light.Diffuse=light_env->Get_Light_Diffuse(l);
@@ -3143,14 +3143,14 @@ void DX8Wrapper::Set_Light_Environment(LightEnvironmentClass* light_env)
 */
 }
 
-IDirect3DSurface8 * DX8Wrapper::_Get_DX8_Front_Buffer()
+IDirect3DSurface9 * DX8Wrapper::_Get_DX8_Front_Buffer()
 {
 	DX8_THREAD_ASSERT();
 	D3DDISPLAYMODE mode;
 
 	DX8CALL(GetDisplayMode(&mode));
 
-	IDirect3DSurface8 * fb=NULL;
+	IDirect3DSurface9 * fb=NULL;
 
 	DX8CALL(CreateImageSurface(mode.Width,mode.Height,D3DFMT_A8R8G8B8,&fb));
 
@@ -3162,7 +3162,7 @@ SurfaceClass * DX8Wrapper::_Get_DX8_Back_Buffer(unsigned int num)
 {
 	DX8_THREAD_ASSERT();
 
-	IDirect3DSurface8 * bb;
+	IDirect3DSurface9 * bb;
 	SurfaceClass *surf=NULL;
 	DX8CALL(GetBackBuffer(num,D3DBACKBUFFER_TYPE_MONO,&bb));
 	if (bb)
@@ -3198,7 +3198,7 @@ DX8Wrapper::Create_Render_Target (int width, int height, WW3DFormat format)
 	//
 	//	Note: We're going to force the width and height to be powers of two and equal
 	//
-	const D3DCAPS8& dx8caps=Get_Current_Caps()->Get_DX8_Caps();
+	const D3DCAPS9& dx8caps=Get_Current_Caps()->Get_DX8_Caps();
 	float poweroftwosize = width;
 	if (height > 0 && height < width) {
 		poweroftwosize = height;
@@ -3268,7 +3268,7 @@ void DX8Wrapper::Create_Render_Target
 	}
 
 	//	Note: We're going to force the width and height to be powers of two and equal
-	const D3DCAPS8& dx8caps=Get_Current_Caps()->Get_DX8_Caps();
+	const D3DCAPS9& dx8caps=Get_Current_Caps()->Get_DX8_Caps();
 	float poweroftwosize = width;
 	if (height > 0 && height < width) 
 	{
@@ -3326,10 +3326,10 @@ void DX8Wrapper::Set_Render_Target_With_Z
 )
 {
 	WWASSERT(texture!=NULL);
-	IDirect3DSurface8 * d3d_surf = texture->Get_D3D_Surface_Level();
+	IDirect3DSurface9 * d3d_surf = texture->Get_D3D_Surface_Level();
 	WWASSERT(d3d_surf != NULL);
 
-	IDirect3DSurface8* d3d_zbuf=NULL;
+	IDirect3DSurface9* d3d_zbuf=NULL;
 	if (ztexture!=NULL)
 	{
 
@@ -3348,7 +3348,7 @@ void DX8Wrapper::Set_Render_Target_With_Z
 }
 
 void
-DX8Wrapper::Set_Render_Target(IDirect3DSwapChain8 *swap_chain)
+DX8Wrapper::Set_Render_Target(IDirect3DSwapChain9 *swap_chain)
 {
 	DX8_THREAD_ASSERT();
 	WWASSERT (swap_chain != NULL);
@@ -3378,7 +3378,7 @@ DX8Wrapper::Set_Render_Target(IDirect3DSwapChain8 *swap_chain)
 }
 
 void
-DX8Wrapper::Set_Render_Target(IDirect3DSurface8 *render_target, bool use_default_depth_buffer)
+DX8Wrapper::Set_Render_Target(IDirect3DSurface9 *render_target, bool use_default_depth_buffer)
 {
 //#ifndef _XBOX
 	DX8_THREAD_ASSERT();
@@ -3435,7 +3435,7 @@ DX8Wrapper::Set_Render_Target(IDirect3DSurface8 *render_target, bool use_default
 		//
 		if (DefaultDepthBuffer == NULL) 
 		{
-//		IDirect3DSurface8 *depth_buffer = NULL;
+//		IDirect3DSurface9 *depth_buffer = NULL;
 			DX8CALL(GetDepthStencilSurface (&DefaultDepthBuffer));
 		}
 
@@ -3505,8 +3505,8 @@ DX8Wrapper::Set_Render_Target(IDirect3DSurface8 *render_target, bool use_default
 */
 void DX8Wrapper::Set_Render_Target
 (
-	IDirect3DSurface8* render_target, 
-	IDirect3DSurface8* depth_buffer 
+	IDirect3DSurface9* render_target, 
+	IDirect3DSurface9* depth_buffer 
 )
 {
 //#ifndef _XBOX
@@ -3563,7 +3563,7 @@ void DX8Wrapper::Set_Render_Target
 		//
 		if (DefaultDepthBuffer == NULL) 
 		{
-//		IDirect3DSurface8 *depth_buffer = NULL;
+//		IDirect3DSurface9 *depth_buffer = NULL;
 			DX8CALL(GetDepthStencilSurface (&DefaultDepthBuffer));
 		}
 
@@ -3613,7 +3613,7 @@ void DX8Wrapper::Set_Render_Target
 }
 
 
-IDirect3DSwapChain8 *
+IDirect3DSwapChain9 *
 DX8Wrapper::Create_Additional_Swap_Chain (HWND render_window)
 {
 	DX8_Assert();
@@ -3637,7 +3637,7 @@ DX8Wrapper::Create_Additional_Swap_Chain (HWND render_window)
 	//
 	//	Create the swap chain
 	//
-	IDirect3DSwapChain8 *swap_chain = NULL;
+	IDirect3DSwapChain9 *swap_chain = NULL;
 	DX8CALL(CreateAdditionalSwapChain(&params, &swap_chain));
 	return swap_chain;
 }

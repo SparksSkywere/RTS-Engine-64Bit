@@ -239,7 +239,7 @@ inline
 WideStringClass::WideStringClass (const WCHAR *string, bool hint_temporary)
 	:	m_Buffer (m_EmptyString)
 {
-	int len=string ? wcslen(string) : 0;
+	int len=string ? (int)wcslen(string) : 0;
 	if (hint_temporary || len>0) {
 		Get_String (len+1, hint_temporary);
 	}
@@ -256,8 +256,8 @@ inline
 WideStringClass::WideStringClass (const char *string, bool hint_temporary)
 	:	m_Buffer (m_EmptyString)
 {
-	if (hint_temporary || (string && strlen(string)>0)) {
-		Get_String (strlen(string) + 1, hint_temporary);
+	if (hint_temporary || (string && (int)strlen(string)>0)) {
+		Get_String ((int)strlen(string) + 1, hint_temporary);
 	}
 
 	(*this) = string;
@@ -434,7 +434,7 @@ WideStringClass::Erase (int start_index, int char_count)
 						&m_Buffer[start_index + char_count],
 						(len - (start_index + char_count) + 1) * sizeof (WCHAR));
 
-		Store_Length( wcslen(m_Buffer) );
+		Store_Length( (int)wcslen(m_Buffer) );
 	}
 
 	return ;
@@ -446,7 +446,7 @@ WideStringClass::Erase (int start_index, int char_count)
 inline void WideStringClass::Trim(void)
 {
 	wcstrim(m_Buffer);
-	int len = wcslen(m_Buffer);
+	int len = (int)wcslen(m_Buffer);
 	Store_Length(len);
 }
 
@@ -458,7 +458,7 @@ inline const WideStringClass &
 WideStringClass::operator= (const WCHAR *string)
 {
 	if (string) {
-		int len = wcslen (string);
+		int len = (int)wcslen (string);
 		Uninitialised_Grow (len + 1);
 		Store_Length (len);
 
@@ -501,7 +501,7 @@ WideStringClass::operator+= (const WCHAR *string)
 {
 	if (string) {
 		int cur_len = Get_Length ();
-		int src_len = wcslen (string);
+		int src_len = (int)wcslen (string);
 		int new_len = cur_len + src_len;
 
 		//
@@ -664,7 +664,7 @@ WideStringClass::Get_Length (void) const
 		// we better manually get the string length.
 		//
 		if (length == 0) {
-			length = wcslen (m_Buffer);
+			length = (int)wcslen (m_Buffer);
 			((WideStringClass *)this)->Store_Length (length);
 		}
 	}
@@ -783,4 +783,5 @@ WideStringClass::Convert_To (StringClass &string) const
 }
 
 #endif //__WIDESTRING_H
+
 

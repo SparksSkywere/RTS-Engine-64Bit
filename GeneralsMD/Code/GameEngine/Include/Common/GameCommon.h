@@ -1,5 +1,5 @@
 /*
-**	Command & Conquer Generals Zero Hour(tm)
+**	Command & Conquer Generals(tm)
 **	Copyright 2025 Electronic Arts Inc.
 **
 **	This program is free software: you can redistribute it and/or modify
@@ -50,18 +50,12 @@
 #ifndef _GAMECOMMON_H_
 #define _GAMECOMMON_H_
 
-
-
-#define DONT_ALLOW_DEBUG_CHEATS_IN_RELEASE ///< Take of the DONT to get cheats back in to release
-
-//#define _CAMPEA_DEMO
-
 // ----------------------------------------------------------------------------------------------
 #include "Lib/BaseType.h"
 
 // ----------------------------------------------------------------------------------------------
-#if defined(_INTERNAL) || defined(_DEBUG)
-	#define DUMP_PERF_STATS
+#if defined(_INTERNAL) || defined(_DEBUG) || defined(_PLAYTEST)
+	#define NO_DUMP_PERF_STATS
 #else
 	#define NO_DUMP_PERF_STATS
 #endif
@@ -124,18 +118,6 @@ enum
 #else
 	#error "this is the wrong size"
 #endif
-
-// ----------------------------------------------------------------------------------------------
-enum 
-{ 
-	MAX_GLOBAL_GENERAL_TYPES = 9,		///< number of playable General Types, not including the boss)
-	
-	/// The start of the playable global generals playertemplates
-	GLOBAL_GENERAL_BEGIN = 5,
-	
-	/// The end of the playable global generals
-	GLOBAL_GENERAL_END = (GLOBAL_GENERAL_BEGIN + MAX_GLOBAL_GENERAL_TYPES - 1)
-};
 
 //-------------------------------------------------------------------------------------------------
 enum GameDifficulty
@@ -229,7 +211,6 @@ enum CommandSourceType
 	CMD_FROM_SCRIPT, 
 	CMD_FROM_AI,
 	CMD_FROM_DOZER,							// Special rare command when the dozer originates a command to attack a mine. Mines are not ai-attackable, and it seems deceitful for the dozer to generate a player or script command. jba.
-	CMD_DEFAULT_SWITCH_WEAPON,	// Special case: A weapon that can be chosen -- this is the default case (machine gun vs flashbang).
 
 };		///< the source of a command
 
@@ -310,16 +291,16 @@ inline VeterancyLevelFlags clearVeterancyLevelFlag(VeterancyLevelFlags flags, Ve
 }
 
 // ----------------------------------------------------------------------------------------------
-#define BOGUSPTR(p) ((((unsigned int)(p)) & 1) != 0)
+#define BOGUSPTR(p) ((((size_t)(p)) & 1) != 0)
 
 // ----------------------------------------------------------------------------------------------
 #define MAKE_DLINK_HEAD(OBJCLASS, LISTNAME)																						\
 public:																																								\
 	inline DLINK_ITERATOR<OBJCLASS> iterate_##LISTNAME() const													\
-	{																																										\
+	{																															\
 		DEBUG_ASSERTCRASH(!BOGUSPTR(m_dlinkhead_##LISTNAME.m_head), ("bogus head ptr"));	\
-		return DLINK_ITERATOR<OBJCLASS>(m_dlinkhead_##LISTNAME.m_head, OBJCLASS::dlink_next_##LISTNAME);	\
-	}																																										\
+		return DLINK_ITERATOR<OBJCLASS>(m_dlinkhead_##LISTNAME.m_head, &OBJCLASS::dlink_next_##LISTNAME);	\
+	}																															\
 	inline OBJCLASS *getFirstItemIn_##LISTNAME() const																	\
 	{																																										\
 		DEBUG_ASSERTCRASH(!BOGUSPTR(m_dlinkhead_##LISTNAME.m_head), ("bogus head ptr"));	\
@@ -400,7 +381,7 @@ public:																	\
 		DEBUG_ASSERTCRASH(!dlink_isInList_##LISTNAME(pListHead), ("already in list " #LISTNAME));					\
 		DEBUG_ASSERTCRASH(!BOGUSPTR(*pListHead) && !BOGUSPTR(m_dlink_##LISTNAME.m_next) && !BOGUSPTR(m_dlink_##LISTNAME.m_prev), ("bogus ptrs")); \
 		m_dlink_##LISTNAME.m_next = *pListHead;																									\
-		if (*pListHead)																																					\
+		if (*pListHead)                                                                                                                          \
 			(*pListHead)->m_dlink_##LISTNAME.m_prev = this;																				\
 		*pListHead = this;																																			\
 		DEBUG_ASSERTCRASH(!BOGUSPTR(*pListHead) && !BOGUSPTR(m_dlink_##LISTNAME.m_next) && !BOGUSPTR(m_dlink_##LISTNAME.m_prev), ("bogus ptrs")); \

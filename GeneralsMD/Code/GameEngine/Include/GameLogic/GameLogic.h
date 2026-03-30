@@ -115,7 +115,7 @@ public:
 	virtual void update( void );														///< update the world
 
 #if defined(_DEBUG) || defined(_INTERNAL)
-	Int getNumberSleepyUpdates() const {return m_sleepyUpdates.size();} //For profiling, so not in Release.
+	Int getNumberSleepyUpdates() const { return (Int)m_sleepyUpdates.size(); } //For profiling, so not in Release.
 #endif
 	void processCommandList( CommandList *list );		///< process the command list
 
@@ -417,8 +417,8 @@ inline Object* GameLogic::findObjectByID( ObjectID id )
 //		return NULL;
 //	
 //	return (*it).second;
-	if( (Int)id < m_objVector.size() )
-		return m_objVector[(Int)id];
+	if( (size_t)id < m_objVector.size() )
+		return m_objVector[(size_t)id];
 
 	return NULL;
 }

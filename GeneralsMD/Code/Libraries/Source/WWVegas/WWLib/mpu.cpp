@@ -40,6 +40,7 @@
 #include	"mpu.h"
 #include "math.h"
 #include <assert.h>
+#include <intrin.h>
 
 typedef union {
 	LARGE_INTEGER LargeInt;
@@ -112,7 +113,9 @@ unsigned long Get_CPU_Clock(unsigned long & high)
 **
 */
 
+#if defined(_M_IX86)
 #define ASM_RDTSC _asm _emit 0x0f _asm _emit 0x31
+#endif
 
 // Max # of samplings to allow before giving up and returning current average.
 #define MAX_TRIES			20
@@ -121,18 +124,20 @@ unsigned long Get_CPU_Clock(unsigned long & high)
 // # of MHz to allow samplings to deviate from average of samplings.
 #define TOLERANCE			1
 
+#if defined(_M_IX86)
 static unsigned long TSC_Low;
 static unsigned long TSC_High;
 
 void RDTSC(void)
 {
-    _asm
-    {
-        ASM_RDTSC;
-        mov     TSC_Low, eax
-        mov     TSC_High, edx
-    }
+	_asm
+	{
+		ASM_RDTSC;
+		mov     TSC_Low, eax
+		mov     TSC_High, edx
+	}
 }
+#endif
 
 
 int Get_RDTSC_CPU_Speed(void)

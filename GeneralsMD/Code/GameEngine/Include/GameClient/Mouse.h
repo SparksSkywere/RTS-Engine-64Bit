@@ -53,6 +53,12 @@
 
 // USER INCLUDES //////////////////////////////////////////////////////////////
 #include "Lib/BaseType.h"
+#ifndef __RTS_BASETYPE_TYPES_DEFINED
+#ifdef _BASE_TYPE_H_
+#undef _BASE_TYPE_H_
+#endif
+#include "Lib/BaseType.h"
+#endif
 #include "Common/SubsystemInterface.h"
 #include "Common/AsciiString.h"
 #include "Common/UnicodeString.h"

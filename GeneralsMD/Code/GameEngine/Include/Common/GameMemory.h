@@ -876,10 +876,10 @@ extern void userMemoryAdjustPoolSize(const char *poolName, Int& initialAllocatio
 	extern void __cdecl operator delete[](void *, const char *, int);
 
 	// additional overloads for 'placement new'
-	//inline void* __cdecl operator new							(size_t s, void *p) { return p; }
-	//inline void __cdecl operator delete						(void *, void *p)		{ }
-	inline void* __cdecl operator new[]						(size_t s, void *p) { return p; }
-	inline void __cdecl operator delete[]					(void *, void *p)		{ }
+	// MODERNIZATION NOTE: These are now defined in <vcruntime_new.h> in modern MSVC
+	// Commenting out to avoid C2084 redefinition errors
+	//inline void* __cdecl operator new[]						(size_t s, void *p) { return p; }
+	//inline void __cdecl operator delete[]					(void *, void *p)		{ }
 
 #endif
 

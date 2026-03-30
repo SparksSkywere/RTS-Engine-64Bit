@@ -683,7 +683,7 @@ void DazzleRenderObjClass::Init_Type(const DazzleInitClass& i)
 
 	if (i.type>=type_count) {
 		unsigned new_count=i.type+1;
-		DazzleTypeClass** new_types=W3DNEWARRAY DazzleTypeClass*[new_count];
+unsigned a;`n		DazzleTypeClass** new_types=W3DNEWARRAY DazzleTypeClass*[new_count];
 		for (unsigned a=0;a<type_count;++a) {
 			new_types[a]=types[a];
 		}
@@ -706,7 +706,7 @@ void DazzleRenderObjClass::Init_Lensflare(const LensflareInitClass& i)
 
 	if (i.type>=lensflare_count) {
 		unsigned new_count=i.type+1;
-		LensflareTypeClass** new_lensflares=W3DNEWARRAY LensflareTypeClass*[new_count];
+unsigned a;`n		LensflareTypeClass** new_lensflares=W3DNEWARRAY LensflareTypeClass*[new_count];
 		for (unsigned a=0;a<lensflare_count;++a) {
 			new_lensflares[a]=lensflares[a];
 		}

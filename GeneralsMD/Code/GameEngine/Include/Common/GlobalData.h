@@ -38,13 +38,19 @@
 #include "Common/GameMemory.h"
 #include "Common/SubsystemInterface.h"
 #include "GameClient/Color.h"
+#ifndef __RTS_BASETYPE_TYPES_DEFINED
+#ifdef _BASE_TYPE_H_
+#undef _BASE_TYPE_H_
+#endif
+#include "Lib/BaseType.h"
+#endif
 #include "Common/STLTypedefs.h"
 #include "Common/GameCommon.h"
 #include "Common/Money.h"
 
 // FORWARD DECLARATIONS ///////////////////////////////////////////////////////////////////////////
 struct FieldParse;
-typedef enum _TerrainLOD;
+enum _TerrainLOD : int;
 class GlobalData;
 class INI;
 class WeaponBonusSet;
@@ -543,3 +549,4 @@ extern GlobalData* TheWritableGlobalData;
 #define TheGlobalData ((const GlobalData*)TheWritableGlobalData)
 
 #endif
+

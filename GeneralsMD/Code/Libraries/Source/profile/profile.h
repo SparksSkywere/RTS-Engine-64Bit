@@ -36,7 +36,9 @@
 	#error "Only either _DEBUG or _INTERNAL should ever be defined"
 #endif
 
-// Define which libraries to use. 
+// Define which libraries to use.
+// Legacy prebuilt profile*.lib binaries are x86-era and may be unavailable in modern x64 builds.
+#if !defined(_WIN64)
 #if defined(_INTERNAL)
 #  pragma comment (lib,"profileinternal.lib")
 #elif defined(_DEBUG)
@@ -45,6 +47,7 @@
 #  pragma comment (lib,"profileprofile.lib")
 #else
 #  pragma comment (lib,"profile.lib")
+#endif
 #endif
 
 // include all our public header files (use double quotes here)

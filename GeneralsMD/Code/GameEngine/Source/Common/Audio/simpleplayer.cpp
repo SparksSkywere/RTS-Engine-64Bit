@@ -16,7 +16,8 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-
+#include <tchar.h>
+#include "Common/Debug.h"
 #include "Common/SimplePlayer.h"
 #include "Common/URLLaunch.h"
 

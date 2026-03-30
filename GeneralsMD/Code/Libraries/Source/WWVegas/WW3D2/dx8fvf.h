@@ -48,7 +48,15 @@
 #define DX8_FVF_H
 
 #include "always.h"
-#include <d3d8.h>
+#if defined(__has_include)
+#if __has_include(<d3d8.h>)
+#include <d3d9.h>
+#else
+#include <d3d9.h>
+#endif
+#else
+#include <d3d9.h>
+#endif
 #ifdef WWDEBUG
 #include "wwdebug.h"
 #endif
@@ -57,6 +65,7 @@ class StringClass;
 
 enum {
 	DX8_FVF_XYZ				= D3DFVF_XYZ,
+	DX8_FFV_XYZ			= D3DFVF_XYZ,
 	DX8_FVF_XYZN			= D3DFVF_XYZ|D3DFVF_NORMAL,
 	DX8_FVF_XYZNUV1		= D3DFVF_XYZ|D3DFVF_NORMAL|D3DFVF_TEX1,
 	DX8_FVF_XYZNUV2		= D3DFVF_XYZ|D3DFVF_NORMAL|D3DFVF_TEX2,
@@ -279,7 +288,7 @@ public:
 	inline unsigned Get_FVF() const { return FVF; }
 	inline unsigned Get_FVF_Size() const { return fvf_size; }
 
-	void Get_FVF_Name(StringClass& fvfname) const;	// For debug purposes
+	void Get_FFV_Name(StringClass& fvfname) const;	// For debug purposes
 
 	// for enabling vertex shaders
 	inline void Set_FVF(unsigned fvf) const { FVF=fvf; }

@@ -39,6 +39,9 @@
 
 #include	"win.h"
 #include	"xmouse.h"
+#include <windows.h>
+#include <mmsystem.h>
+#include "wwdebug.h"
 
 class BSurface;
 

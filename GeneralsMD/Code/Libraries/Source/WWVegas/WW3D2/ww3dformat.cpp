@@ -37,13 +37,13 @@
  * Functions:                                                                                  *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
+#define POINTER_64 __ptr64
 #include "ww3dformat.h"
 #include "vector4.h"
 #include "wwdebug.h"
 #include "targa.h"
 #include "dx8wrapper.h"
 #include "dx8caps.h"
-#include <d3d8.h>
 
  /*
 	WW3D_FORMAT_UNKNOWN=0,

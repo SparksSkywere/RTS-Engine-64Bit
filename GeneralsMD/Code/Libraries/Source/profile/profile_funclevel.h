@@ -185,7 +185,12 @@ public:
     */
     unsigned GetId(void) const
     {
-      return unsigned(m_threadID);
+#if defined(_WIN64)
+      size_t tid = (size_t)m_threadID;
+      return (unsigned)(tid ^ (tid >> 32));
+#else
+      return (unsigned)(size_t)m_threadID;
+#endif
     }
 
   private:

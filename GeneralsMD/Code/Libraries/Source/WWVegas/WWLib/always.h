@@ -93,9 +93,10 @@
 	// additional overloads for 'placement new'
 	//inline void* __cdecl operator new							(size_t s, void *p) { return p; }
 	//inline void __cdecl operator delete						(void *, void *p)		{ }
+#if !defined(_WIN64)
 	inline void* __cdecl operator new[]						(size_t s, void *p) { return p; }
 	inline void __cdecl operator delete[]					(void *, void *p)		{ }
-
+#endif
 #endif
 
 #if (defined(_DEBUG) || defined(_INTERNAL)) 
@@ -127,15 +128,15 @@ private: \
 			order-of-execution problem for static variables, ensuring this is not executed \
 			prior to the initialization of TheMemoryPoolFactory. \
 		*/ \
-		static void* The##ARGCLASS##Pool = createW3DMemPool(#ARGCLASS, sizeof(ARGCLASS)); \
+		static void* The##ARGCLASS##Pool = createW3DMemPool(#ARGCLASS, (int)sizeof(ARGCLASS)); \
 		return The##ARGCLASS##Pool; \
 	} \
 protected: \
-	virtual int glueEnforcer() const { return sizeof(this); } \
+	virtual int glueEnforcer() const { return (int)sizeof(this); } \
 public: \
-	inline void* operator new(size_t s) { return allocateFromW3DMemPool(getClassMemoryPool(), s); } \
+	inline void* operator new(size_t s) { return allocateFromW3DMemPool(getClassMemoryPool(), (int)s); } \
 	inline void operator delete(void *p) { freeFromW3DMemPool(getClassMemoryPool(), p); } \
-	inline void* operator new(size_t s, const char* msg, int unused) { return allocateFromW3DMemPool(getClassMemoryPool(), s, msg, unused); } \
+	inline void* operator new(size_t s, const char* msg, int unused) { return allocateFromW3DMemPool(getClassMemoryPool(), (int)s, msg, unused); } \
 	inline void operator delete(void *p, const char* msg, int unused) { freeFromW3DMemPool(getClassMemoryPool(), p); } \
 
 // ----------------------------------------------------------------------------

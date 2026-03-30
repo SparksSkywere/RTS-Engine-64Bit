@@ -49,7 +49,20 @@
 #include "Common/GameSounds.h"
 #include "Common/Debug.h"
 #include "Common/GameMemory.h"
+// MODERNIZATION: SafeDisc DRM removed for open-source build
 #include "Common/SafeDisc/CdaPfn.h"
+#ifndef CDAPFN_OVERHEAD_L5
+#define CDAPFN_OVERHEAD_L5 0
+#endif
+#ifndef CDAPFN_CONSTRAINT_NONE
+#define CDAPFN_CONSTRAINT_NONE 0
+#endif
+#ifndef CDAPFN_DECLARE_GLOBAL
+#define CDAPFN_DECLARE_GLOBAL(name, overhead, constraint)
+#endif
+#ifndef CDAPFN_ENDMARK
+#define CDAPFN_ENDMARK(name) ((void)0)
+#endif
 #include "Common/StackDump.h"
 #include "Common/MessageStream.h"
 #include "Common/Registry.h"
@@ -63,7 +76,7 @@
 #include "Win32Device/Common/Win32GameEngine.h"
 #include "Common/Version.h"
 #include "BuildVersion.h"
-#include "GeneratedVersion.h"
+#include "generatedVersion.h"
 #include "Resource.h"
 
 #include <rts/profile.h>
@@ -792,11 +805,11 @@ static char* strtrim(char* buffer)
 
 		if (source != buffer)
 		{
-			strcpy(buffer, source);
+			memmove(buffer, source, strlen(source) + 1);
 		}
 
 		//	Clip trailing white space from the string.
-		for (int index = strlen(buffer)-1; index >= 0; index--)
+		for (int index = (int)strlen(buffer)-1; index >= 0; index--)
 		{
 			if ((*source != 0) && ((unsigned char)buffer[index] <= 32))
 			{
@@ -882,7 +895,15 @@ Int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
 	try {
 
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable:4535)
+#endif
 		_set_se_translator( DumpExceptionInfo ); // Hook that allows stack trace.
+#if defined(_MSC_VER)
+#pragma warning(pop)
+#endif
+
 		//
 		// there is something about checkin in and out the .dsp and .dsw files 
 		// that blows the working directory information away on each of the 
@@ -924,7 +945,7 @@ Int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance,
 		while (argc < 20 && token != NULL) {
 			argv[argc++] = strtrim(token);
 			//added a preparse step for this flag because it affects window creation style
-			if (stricmp(token,"-win")==0)
+			if (_stricmp(token,"-win")==0)
 				ApplicationIsWindowed=true;
 			token = nextParam(NULL, "\" ");	   
 		}
@@ -935,11 +956,11 @@ Int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance,
 			for (i=2; i<argc; i++) {
 				Int pc;
 				pc = 0;
-				sscanf(argv[i], "%x",  &pc);
+				sscanf_s(argv[i], "%x",  &pc);
 				char name[_MAX_PATH], file[_MAX_PATH];
 				unsigned int line;
 				unsigned int addr;
-				GetFunctionDetails((void*)pc, name, file, &line, &addr);
+				GetFunctionDetails((void*)(size_t)pc, name, file, &line, &addr);
 				DEBUG_LOG(("0x%x - %s, %s, line %d address 0x%x\n", pc, name, file, line, addr));
 			}
 			DEBUG_LOG(("\n--- END OF DX STACK DUMP\n"));
@@ -961,16 +982,17 @@ Int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	//	WWDebug_Install_Assert_Handler(WWAssert_Callback);
 
 
-// Force "splash image" to be loaded from a file, not a resource so same exe can be used in different localizations.
+	// Force "splash image" to be loaded from a file, not a resource so same exe can be used in different localizations.
 #if defined _DEBUG || defined _INTERNAL || defined _PROFILE
 
 			// check both localized directory and root dir
 		char filePath[_MAX_PATH];
 		char *fileName = "Install_Final.bmp";
 		static const char *localizedPathFormat = "Data/%s/";
-		sprintf(filePath,localizedPathFormat, GetRegistryLanguage().str());
-		strcat( filePath, fileName );
-		FILE *fileImage = fopen(filePath, "r");
+		sprintf_s(filePath, _countof(filePath), localizedPathFormat, GetRegistryLanguage().str());
+		strcat_s(filePath, _countof(filePath), fileName);
+		FILE *fileImage = NULL;
+		fopen_s(&fileImage, filePath, "r");
 		if (fileImage) {
 			fclose(fileImage);
 			gLoadScreenBitmap = (HBITMAP)LoadImage(hInstance, filePath, IMAGE_BITMAP, 0, 0, LR_SHARED|LR_LOADFROMFILE);

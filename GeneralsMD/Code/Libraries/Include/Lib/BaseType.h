@@ -169,6 +169,9 @@ inline Real deg2rad(Real rad) { return rad * (PI/180); }
 //-----------------------------------------------------------------------------
 // For twiddling bits
 //-----------------------------------------------------------------------------
+#ifdef BitTest
+#undef BitTest
+#endif
 #define BitTest( x, i ) ( ( (x) & (i) ) != 0 )
 #define BitSet( x, i ) ( (x) |= (i) )
 #define BitClear( x, i ) ( (x ) &= ~(i) )
@@ -179,6 +182,7 @@ inline Real deg2rad(Real rad) { return rad * (PI/180); }
 // note, this function depends on the cpu rounding mode, which we set to CHOP every frame, 
 // but apparently tends to be left in unpredictable modes by various system bits of
 // code, so use this function with caution -- it might not round in the way you want.
+#if defined(_M_IX86)
 __forceinline long fast_float2long_round(float f)
 {
 	long i;
@@ -222,10 +226,31 @@ __forceinline float fast_float_floor(float f)
 __forceinline float fast_float_ceil(float f)
 {
   static unsigned almost1=(126<<23)|0x7fffff;
-  if ( (*(unsigned *)&f &0x80000000)==0)
+  if ( (*(unsigned *)&f & 0x80000000)==0)
     f+=*(float *)&almost1;
   return fast_float_trunc(f);
 }
+#else
+__forceinline long fast_float2long_round(float f)
+{
+	return (long)(f >= 0.0f ? floorf(f + 0.5f) : ceilf(f - 0.5f));
+}
+
+__forceinline float fast_float_trunc(float f)
+{
+	return (f >= 0.0f) ? floorf(f) : ceilf(f);
+}
+
+__forceinline float fast_float_floor(float f)
+{
+	return floorf(f);
+}
+
+__forceinline float fast_float_ceil(float f)
+{
+	return ceilf(f);
+}
+#endif
 
 //-------------------------------------------------------------------------------------------------
 #define REAL_TO_INT(x)						((Int)(fast_float2long_round(fast_float_trunc(x))))
@@ -238,6 +263,8 @@ __forceinline float fast_float_ceil(float f)
 #define DOUBLE_TO_REAL(x)					((Real) (x))
 #define DOUBLE_TO_INT(x)					((Int) (fast_float2long_round(fast_float_trunc(x))))
 #define INT_TO_REAL(x)						((Real) (x))
+
+
 
 // once we've ceiled/floored, trunc and round are identical, and currently, round is faster... (srj)
 #define REAL_TO_INT_CEIL(x)				(fast_float2long_round(fast_float_ceil(x)))
@@ -491,5 +518,7 @@ struct RGBAColorInt
 	UnsignedInt red, green, blue, alpha;  // range between 0 and 255
 
 };
+
+#define __RTS_BASETYPE_TYPES_DEFINED 1
 
 #endif // _BASE_TYPE_H_

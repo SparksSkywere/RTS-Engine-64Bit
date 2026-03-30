@@ -7,7 +7,8 @@
 //
 // Generated from the TEXTINCLUDE 2 resource.
 //
-#include "afxres.h"
+#include <windows.h>
+#include <winres.h>
 
 /////////////////////////////////////////////////////////////////////////////
 #undef APSTUDIO_READONLY_SYMBOLS
@@ -34,7 +35,8 @@ END
 
 2 TEXTINCLUDE DISCARDABLE 
 BEGIN
-    "#include ""afxres.h""\r\n"
+    "#include <windows.h>\r\n"
+    "#include <winres.h>\r\n"
     "\0"
 END
 
@@ -54,7 +56,7 @@ END
 
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
-IDI_ApplicationIcon     ICON    DISCARDABLE     "GENERALS.ICO"
+// IDI_ApplicationIcon     ICON    DISCARDABLE     "Generals.ico"
 #endif    // English (U.S.) resources
 /////////////////////////////////////////////////////////////////////////////
 
@@ -69,4 +71,5 @@ IDI_ApplicationIcon     ICON    DISCARDABLE     "GENERALS.ICO"
 
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED
+
 

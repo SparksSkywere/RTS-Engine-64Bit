@@ -363,7 +363,7 @@ inline AsciiString::AsciiString() : m_data(0)
 inline AsciiString::AsciiString(const char* s) : m_data(0)
 {
 	//DEBUG_ASSERTCRASH(isMemoryManagerOfficiallyInited(), ("Initializing AsciiStrings prior to main (ie, as static vars) can cause memory leak reporting problems. Are you sure you want to do this?\n"));
-	int len = (s)?strlen(s):0;
+	int len = s ? (int)strlen(s) : 0;
 	if (len)
 	{
 		ensureUniqueBufferOfSize(len + 1, false, s, NULL);
@@ -410,7 +410,7 @@ inline AsciiString::~AsciiString()
 inline int AsciiString::getLength() const
 {
 	validate();
-	return m_data ? strlen(peek()) : 0;
+	return m_data ? (int)strlen(peek()) : 0;
 }
 
 // -----------------------------------------------------
@@ -474,7 +474,7 @@ inline void AsciiString::set(const char* s)
 	validate();
 	if (!m_data || s != peek())
 	{
-		int len = s ? strlen(s) : 0;
+		int len = s ? (int)strlen(s) : 0;
 		if (len)
 		{
 			ensureUniqueBufferOfSize(len + 1, false, s, NULL);
@@ -509,7 +509,7 @@ inline AsciiString& AsciiString::operator=(const char* s)
 inline void AsciiString::concat(const char* s)
 {
 	validate();
-	int addlen = strlen(s);
+	int addlen = (int)strlen(s);
 	if (addlen == 0)
 		return;	// my, that was easy
 

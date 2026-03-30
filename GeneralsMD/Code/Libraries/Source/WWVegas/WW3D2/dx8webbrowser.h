@@ -50,7 +50,7 @@
 #define BROWSEROPTION_SCROLLBARS		0x0001
 #define BROWSEROPTION_3DBORDER		0x0002
 
-struct IDirect3DDevice8;
+struct IDirect3DDevice9;
 
 /**
 ** DX8WebBrowser

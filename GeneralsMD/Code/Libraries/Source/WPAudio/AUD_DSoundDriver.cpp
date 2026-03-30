@@ -72,8 +72,42 @@
 // #undef INITGUID  // see comment above
 #include <windows.h>
 
+#ifndef AUD_USE_ASIMP3
+#define AUD_USE_ASIMP3 0
+#endif
+
+#if AUD_USE_ASIMP3
 #include "asimp3\mss.h"
 #include "asimp3\mp3dec.h"
+#else
+#ifndef FAR
+#define FAR
+#endif
+#ifndef AILCALL
+#define AILCALL __cdecl
+#endif
+#ifndef AILCALLBACK
+#define AILCALLBACK __cdecl
+#endif
+#ifndef DXDEC
+#define DXDEC
+#endif
+
+typedef struct _ASISTREAM
+{
+	int output_cursor;
+	int frame_size;
+} ASISTREAM;
+
+typedef ASISTREAM *HASISTREAM;
+typedef S32 (AILCALLBACK *ASI_FETCH_CB)(U32 user, void FAR *dest, S32 bytes, S32 offset);
+
+static void ASI_startup(void) {}
+static void ASI_shutdown(void) {}
+static HASISTREAM ASI_stream_open(U32, ASI_FETCH_CB, U32) { return NULL; }
+static void ASI_stream_close(HASISTREAM) {}
+static S32 ASI_stream_process(HASISTREAM, void FAR *, S32) { return 0; }
+#endif
 
 #include <wpaudio/profiler.h>
 #include <wpaudio/device.h>
@@ -1007,10 +1041,17 @@ static		void	AUD_new_buffer_src ( AUD_DRV_CHAN *ci )
 			break;
 
 		case AUDIO_COMPRESS_MP3:
+#if AUD_USE_ASIMP3
 			ci->transfer = MP3_transfer;
 			data->in_size_needed = STREAM_BUFSIZE + 1024;
 			data->mp3.in_pos = 0;
 			data->in_bytes = data->in_size_needed;
+#else
+			ci->transfer = NULL_transfer;
+			data->in_size_needed = 0;
+			data->mp3.in_pos = 0;
+			data->in_bytes = 0;
+#endif
 			break;
 
 #ifdef _DEBUG
