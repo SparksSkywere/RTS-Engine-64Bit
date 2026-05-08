@@ -16,14 +16,14 @@ Max4Release
 Max4Hybrid
 
 # Explicitly ignore these as the depo already contains prebuilt 3rd party .lib files
-/Code/gameengine/Lib/GameEngine.lib
-/Code/gameengine/Lib/GameEngineDebug.lib
-/Code/gameengine/Lib/GameEngineInternal.lib
-/Code/gameengine/Lib/GameEngineProfile.lib
-/Code/gameenginedevice/Lib/GameEngineDevice.lib
-/Code/gameenginedevice/Lib/GameEngineDeviceDebug.lib
-/Code/gameenginedevice/Lib/GameEngineDeviceInternal.lib
-/Code/gameenginedevice/Lib/GameEngineDeviceProfile.lib
+/Code/GameEngine/Lib/GameEngine.lib
+/Code/GameEngine/Lib/GameEngineDebug.lib
+/Code/GameEngine/Lib/GameEngineInternal.lib
+/Code/GameEngine/Lib/GameEngineProfile.lib
+/Code/GameEngineDevice/Lib/GameEngineDevice.lib
+/Code/GameEngineDevice/Lib/GameEngineDeviceDebug.lib
+/Code/GameEngineDevice/Lib/GameEngineDeviceInternal.lib
+/Code/GameEngineDevice/Lib/GameEngineDeviceProfile.lib
 /Code/Libraries/Lib/Benchmark.lib
 /Code/Libraries/Lib/BenchmarkD.lib
 /Code/Libraries/Lib/EABrowserDispatch.lib
