@@ -30,6 +30,8 @@
 // INCLUDES ///////////////////////////////////////////////////////////////////////////////////////
 #include "PreRTS.h"	// This must go first in EVERY cpp file int the GameEngine
 
+#include <stdint.h>
+
 #define DEFINE_POWER_NAMES								// for PowerNames[]
 #define DEFINE_SHADOW_NAMES								// for TheShadowNames[]
 #define DEFINE_GEOMETRY_NAMES							// for GeometryNames[]
@@ -511,7 +513,7 @@ void ThingTemplate::parseModuleName(INI* ini, void *instance, void* store, const
 {
 	ThingTemplate* self = (ThingTemplate*)instance;
 	ModuleInfo* mi = (ModuleInfo*)store;
-	ModuleType type = (ModuleType)(UnsignedInt)userData;
+	ModuleType type = static_cast<ModuleType>(reinterpret_cast<intptr_t>(userData));
 	const char* token = ini->getNextToken();
 	AsciiString tokenStr = token;
 
@@ -618,7 +620,7 @@ void ThingTemplate::parseModuleName(INI* ini, void *instance, void* store, const
 //-------------------------------------------------------------------------------------------------
 void ThingTemplate::parseIntList(INI* ini, void *instance, void* store, const void* userData)
 {
-	Int numberEntries = (Int)userData;
+	Int numberEntries = static_cast<Int>(reinterpret_cast<intptr_t>(userData));
 	Int *intList = (Int*)store;
 
 	for( Int intIndex = 0; intIndex < numberEntries; intIndex ++ )
@@ -1322,7 +1324,8 @@ void ThingTemplate::initForLTA(const AsciiString& name)
 
 	char buffer[1024];
 	strncpy(buffer, name.str(), sizeof(buffer));
-	for (int i=0; buffer[i]; i++) {
+	int i = 0;
+	for (; buffer[i]; i++) {
 		if (buffer[i] == '/') {
 			i++;
 			break;

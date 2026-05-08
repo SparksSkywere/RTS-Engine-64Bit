@@ -439,8 +439,17 @@ void ControlBarScheme::init(void)
 	}
 	GameWindow *win = NULL;
 	Coord2D resMultiplier;
-	resMultiplier.x = TheDisplay->getWidth()/INT_TO_REAL(m_ScreenCreationRes.x) ;
-	resMultiplier.y = TheDisplay->getHeight()/INT_TO_REAL(m_ScreenCreationRes.y);
+	Int creationWidth = m_ScreenCreationRes.x;
+	Int creationHeight = m_ScreenCreationRes.y;
+	if (creationWidth <= 0 || creationHeight <= 0)
+	{
+		DEBUG_LOG(("ControlBarScheme::init - invalid ScreenCreationRes %d x %d for scheme %s, using 800x600 fallback\n",
+			creationWidth, creationHeight, m_name.str()));
+		creationWidth = 800;
+		creationHeight = 600;
+	}
+	resMultiplier.x = TheDisplay->getWidth()/INT_TO_REAL(creationWidth);
+	resMultiplier.y = TheDisplay->getHeight()/INT_TO_REAL(creationHeight);
 
 	win= TheWindowManager->winGetWindowFromId( NULL, TheNameKeyGenerator->nameToKey( "ControlBar.wnd:PopupCommunicator" ) );
 	if(win)	
@@ -594,8 +603,7 @@ void ControlBarScheme::init(void)
 		}
 		win->winSetPosition(x,y );
 		win->winSetSize((m_powerBarLR.x - m_powerBarUL.x)*resMultiplier.x+ COMMAND_BAR_SIZE_OFFSET,(m_powerBarLR.y - m_powerBarUL.y)*resMultiplier.y+ COMMAND_BAR_SIZE_OFFSET);
-		DEBUG_LOG(("Power Bar UL X:%d Y:%d LR X:%d Y:%d size X:%d Y:%d\n",m_powerBarUL.x, m_powerBarUL.y,m_powerBarLR.x, m_powerBarLR.y, (m_powerBarLR.x - m_powerBarUL.x)*resMultiplier.x+ COMMAND_BAR_SIZE_OFFSET,(m_powerBarLR.y - m_powerBarUL.y)*resMultiplier.y+ COMMAND_BAR_SIZE_OFFSET  ));
-	}	
+	}
 
 	win= TheWindowManager->winGetWindowFromId( NULL, TheNameKeyGenerator->nameToKey( "ControlBar.wnd:ButtonGeneral" ) );
 	if(win)	

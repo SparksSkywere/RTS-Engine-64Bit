@@ -86,7 +86,7 @@
 #include "rinfo.h"
 #include "camera.h"
 #include "dx8fvf.h"
-#include "D3DXMath.h"
+#include "d3dx9math.h"
 #include "sortingrenderer.h"
 
 // Upgraded to DX8 2/2/01 HY
@@ -1285,7 +1285,8 @@ void PointGroupClass::Update_Arrays(
    			float y_scale = (VPYMax - VPYMin) / yres;
    
 				Vector3 scaled_locs[2][3];
-				for (int i = 0; i < 2; i++) {
+				int i;
+				for (i = 0; i < 2; i++) {
 					for (int j = 0; j < 3; j++) {
 						scaled_locs[i][j].X = _ScreenspaceVertexLocationSizeTable[i][j].X * x_scale;
 						scaled_locs[i][j].Y = _ScreenspaceVertexLocationSizeTable[i][j].Y * y_scale;
@@ -1319,7 +1320,8 @@ void PointGroupClass::Update_Arrays(
    			float y_scale = (VPYMax - VPYMin) / yres;
    
 				Vector3 scaled_locs[2][3];
-				for (int i = 0; i < 2; i++) {
+				int i;
+				for (i = 0; i < 2; i++) {
 					for (int j = 0; j < 3; j++) {
 						scaled_locs[i][j].X = _ScreenspaceVertexLocationSizeTable[i][j].X * x_scale;
 						scaled_locs[i][j].Y = _ScreenspaceVertexLocationSizeTable[i][j].Y * y_scale;

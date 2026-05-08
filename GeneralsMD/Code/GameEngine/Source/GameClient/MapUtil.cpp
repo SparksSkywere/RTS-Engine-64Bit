@@ -950,7 +950,7 @@ typedef MapDisplayToFileNameList::iterator MapDisplayToFileNameListIter;
 
 				if (numColumns > 1)
 				{
-					GadgetListBoxSetItemData( listbox, (void *)imageItemData, index, 1 );
+					GadgetListBoxSetItemData(listbox, reinterpret_cast<void *>(static_cast<intptr_t>(imageItemData)), index, 1);
 				}
 			}
 			++tempit;

@@ -54,6 +54,11 @@
 #include "W3DDevice/GameClient/W3DGadget.h"
 #include "W3DDevice/GameClient/W3DDisplay.h"
 
+#ifdef BitTest
+#undef BitTest
+#endif
+#define BitTest(x, i) (((x) & (i)) != 0)
+
 // DEFINES ////////////////////////////////////////////////////////////////////
 
 // PRIVATE TYPES //////////////////////////////////////////////////////////////
@@ -250,8 +255,15 @@ static void drawListBoxText( GameWindow *window, WinInstanceData *instData,
 		}
 		else
 		{
-			if( i == list->selectPos )
+			if( BitTest( instData->getState(), WIN_STATE_HILITED ) && list->mouseOverPos >= 0 )
+			{
+				if( i == list->mouseOverPos )
+					selected = TRUE;
+			}
+			else if( i == list->selectPos )
+			{
 				selected = TRUE;
+			}
 		}
 
 		// this item is selected, draw the selection color or image

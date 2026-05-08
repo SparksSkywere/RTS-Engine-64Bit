@@ -32,7 +32,6 @@
 #include "Common/AudioAffect.h"
 #include "Common/AudioHandleSpecialValues.h"
 #include "Common/BuildAssistant.h"
-#include "Common/CopyProtection.h"
 #include "Common/CRCDebug.h"
 #include "Common/GameAudio.h"
 #include "Common/GameEngine.h"
@@ -212,9 +211,13 @@ void setFPMode( void )
 	UnsignedInt newVal = curVal;
 	newVal = (newVal & ~_MCW_RC) | (_RC_NEAR & _MCW_RC);
 	//newVal = (newVal & ~_MCW_RC) | (_RC_CHOP & _MCW_RC);
-	newVal = (newVal & ~_MCW_PC) | (_PC_24   & _MCW_PC);
-
+#ifndef _WIN64
+	// _MCW_PC (x87 precision control) is not valid on x64 and causes a CRT assertion.
+	newVal = (newVal & ~_MCW_PC) | (_PC_24 & _MCW_PC);
 	_controlfp(newVal, _MCW_PC | _MCW_RC);
+#else
+	_controlfp(newVal, _MCW_RC);
+#endif
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -363,6 +366,20 @@ GameLogic::~GameLogic()
 	// delete the Script Engine
 	delete TheScriptEngine;
 	TheScriptEngine = NULL;
+
+	WaterTransparencySetting *wt = (WaterTransparencySetting*) TheWaterTransparency.getNonOverloadedPointer();
+	if (wt != NULL)
+	{
+		wt->deleteInstance();
+		TheWaterTransparency = NULL;
+	}
+
+	WeatherSetting *ws = (WeatherSetting*) TheWeatherSetting.getNonOverloadedPointer();
+	if (ws != NULL)
+	{
+		ws->deleteInstance();
+		TheWeatherSetting = NULL;
+	}
 	
 	// Null out TheGameLogic
 	TheGameLogic = NULL;
@@ -663,10 +680,51 @@ LoadScreen *GameLogic::getLoadScreen( Bool loadingSaveGame )
 // ------------------------------------------------------------------------------------------------
 void handleNameChange( MapObject *mapObj )
 {
+	const ThingTemplate *thingTemplate = NULL;
+	if( !mapObj->getName().compareNoCase( "Tech Center" ) || !mapObj->getName().compareNoCase( "Tech Building" ) )
+	{
+		thingTemplate = TheThingFactory->findTemplate( "TechBuilding", FALSE );
+		if( thingTemplate )
+		{
+			mapObj->setName( "TechBuilding" );
+			mapObj->setThingTemplate( thingTemplate );
+		}
+		return;
+	}
+	if( !mapObj->getName().compareNoCase( "Tech Oil Derrick" ) )
+	{
+		mapObj->setName( "TechOilDerrick" );
+		thingTemplate = TheThingFactory->findTemplate( mapObj->getName(), FALSE );
+		if( thingTemplate )
+		{
+			mapObj->setThingTemplate( thingTemplate );
+		}
+		return;
+	}
+	if( !mapObj->getName().compareNoCase( "Tech Hospital" ) )
+	{
+		mapObj->setName( "TechHospital" );
+		thingTemplate = TheThingFactory->findTemplate( mapObj->getName(), FALSE );
+		if( thingTemplate )
+		{
+			mapObj->setThingTemplate( thingTemplate );
+		}
+		return;
+	}
+	if( !mapObj->getName().compareNoCase( "Tech Repair Bay" ) || !mapObj->getName().compareNoCase( "Repair Bay" ) )
+	{
+		mapObj->setName( "TechRepairbay" );
+		thingTemplate = TheThingFactory->findTemplate( mapObj->getName(), FALSE );
+		if( thingTemplate )
+		{
+			mapObj->setThingTemplate( thingTemplate );
+		}
+		return;
+	}
 	if( !mapObj->getName().compare( "AmericaTankLeopard" ) )
 	{
 		mapObj->setName( "AmericaTankCrusader" );
-		const ThingTemplate *thingTemplate = TheThingFactory->findTemplate( mapObj->getName() );
+		thingTemplate = TheThingFactory->findTemplate( mapObj->getName() );
 		mapObj->setThingTemplate( thingTemplate );
 	}
 	if( !mapObj->getName().compare( "AmericaVehicleHumVee" ) )
@@ -1873,10 +1931,24 @@ void GameLogic::startNewGame( Bool loadingSaveGame )
 			}
 #endif
 			
-			// Get the team information
-			DEBUG_ASSERTCRASH(pMapObj->getProperties()->getType(TheKey_originalOwner) == Dict::DICT_ASCIISTRING, ("unit %s has no original owner specified (obsolete map file)\n",pMapObj->getName().str()));
-			AsciiString originalOwner = pMapObj->getProperties()->getAsciiString(TheKey_originalOwner);
-			Team *team = ThePlayerList->validateTeam(originalOwner);
+			// Get the team information. Legacy maps may use a player name here instead of a
+			// team name, or omit the owner entirely for neutral/civilian props.
+			Team *team = ThePlayerList->getNeutralPlayer()->getDefaultTeam();
+			if( pMapObj->getProperties()->getType(TheKey_originalOwner) == Dict::DICT_ASCIISTRING )
+			{
+				AsciiString originalOwner = pMapObj->getProperties()->getAsciiString(TheKey_originalOwner);
+				team = ThePlayerList->validateTeam(originalOwner);
+			}
+			else
+			{
+				Player *civilian = ThePlayerList->findPlayerWithNameKey(NAMEKEY("PlyrCivilian"));
+				if( civilian != NULL )
+				{
+					team = civilian->getDefaultTeam();
+				}
+				DEBUG_LOG(("GameLogic::startNewGame - unit %s has no original owner specified; defaulting to %s team\n",
+					pMapObj->getName().str(), (civilian != NULL) ? "civilian" : "neutral"));
+			}
 
 			// create new object in the world
 			Object *obj = TheThingFactory->newObject( thingTemplate, team ); //, OBJECT_STATUS_LOADING_FROM_MAP );
@@ -2831,12 +2903,15 @@ Int GameLogic::rebalanceChildSleepyUpdate(Int i)
 // max efficiency. I have left the pristine non-unrolled
 // version present for clarity. (Yes, this is worth doing.) (srj) 
 #if 1
-	UpdateModulePtr* pI = &m_sleepyUpdates[i];
+	// Use .data() + index instead of &operator[] to avoid MSVC debug vector bounds-check
+	// on intentional one-past-end and child pointers (child index may exceed size()).
+	UpdateModulePtr* pBase = m_sleepyUpdates.data();
+	UpdateModulePtr* pI = pBase + i;
 
 	// our children are i*2 and i*2+1
   Int child = ((i+1)<<1)-1;
-	UpdateModulePtr* pChild = &m_sleepyUpdates[child];
-	UpdateModulePtr* pSZ = &m_sleepyUpdates[m_sleepyUpdates.size()];	// yes, this is off the end.
+	UpdateModulePtr* pChild = pBase + child;
+	UpdateModulePtr* pSZ = pBase + m_sleepyUpdates.size();	// one past the end
 
   while (pChild < pSZ) 
 	{
@@ -2867,7 +2942,7 @@ Int GameLogic::rebalanceChildSleepyUpdate(Int i)
 		pI = pChild;
 
 		child = ((i+1)<<1)-1;
-		pChild = &m_sleepyUpdates[child];
+		pChild = pBase + child;
   }
 #else
 	// our children are i*2 and i*2+1
@@ -3623,6 +3698,12 @@ void GameLogic::update( void )
 	{
 		TheScriptEngine->UPDATE();
 	}
+#ifdef _DEBUG
+	if (now == 0)
+	{
+		DEBUG_LOG(("GameLogic::update frame0 - after ScriptEngine->UPDATE()\n"));
+	}
+#endif
 
 	Bool freezeTime = TheTacticalView->isTimeFrozen() && !TheTacticalView->isCameraMovementFinished();
 	freezeTime = freezeTime || TheScriptEngine->isTimeFrozenDebug() || TheScriptEngine->isTimeFrozenScript();
@@ -3645,6 +3726,12 @@ void GameLogic::update( void )
 	{
 		TheTerrainLogic->UPDATE();
 	}
+#ifdef _DEBUG
+	if (now == 0)
+	{
+		DEBUG_LOG(("GameLogic::update frame0 - after TheTerrainLogic->UPDATE()\n"));
+	}
+#endif
 
 	// force CRC calculation, so we can keep a cache of the last N CRCs.  We do this right where the recorder
 	// would be getting the CRC anyway, so replays can get the CRCs from the exact instant in time as the original.
@@ -3682,16 +3769,34 @@ void GameLogic::update( void )
 	{
 		TheStatsCollector->update();
 	}
+#ifdef _DEBUG
+	if (now == 0)
+	{
+		DEBUG_LOG(("GameLogic::update frame0 - after TheStatsCollector->update()\n"));
+	}
+#endif
 
 	// Update the Recorder
 	{
 		TheRecorder->UPDATE();
 	}
+#ifdef _DEBUG
+	if (now == 0)
+	{
+		DEBUG_LOG(("GameLogic::update frame0 - after TheRecorder->UPDATE()\n"));
+	}
+#endif
 
 	// process client commands
 	{
 		processCommandList( TheCommandList );
 	}
+#ifdef _DEBUG
+	if (now == 0)
+	{
+		DEBUG_LOG(("GameLogic::update frame0 - after processCommandList()\n"));
+	}
+#endif
 
 #ifdef ALLOW_NONSLEEPY_UPDATES
 	{
@@ -3745,8 +3850,26 @@ void GameLogic::update( void )
 
 				//DEBUG_LOG(("calling update %08lx (%d %d)... ",update,update->friend_getNextCallFrame(),update->friend_getNextCallPhase()));
 				m_curUpdateModule = u;
+#ifdef _DEBUG
+				if (now == 0)
+				{
+					const Object *traceObj = u->friend_getObject();
+					DEBUG_LOG(("GameLogic::update frame0 - sleepy update START obj='%s' module='%s'\n",
+						(traceObj && traceObj->getTemplate()) ? traceObj->getTemplate()->getName().str() : "<null>",
+						KEYNAME(u->getModuleNameKey()).str()));
+				}
+#endif
 
 				sleepLen = u->update();
+#ifdef _DEBUG
+				if (now == 0)
+				{
+					const Object *traceObj = u->friend_getObject();
+					DEBUG_LOG(("GameLogic::update frame0 - sleepy update END obj='%s' module='%s' sleep=%u\n",
+						(traceObj && traceObj->getTemplate()) ? traceObj->getTemplate()->getName().str() : "<null>",
+						KEYNAME(u->getModuleNameKey()).str(), (UnsignedInt)sleepLen));
+				}
+#endif
 				DEBUG_ASSERTCRASH(sleepLen > 0, ("you may not return 0 from update"));
 				if (sleepLen < 1) 
 					sleepLen = UPDATE_SLEEP_NONE;
@@ -3767,16 +3890,34 @@ void GameLogic::update( void )
 	{
 		TheAI->UPDATE();
 	}
+#ifdef _DEBUG
+	if (now == 0)
+	{
+		DEBUG_LOG(("GameLogic::update frame0 - after TheAI->UPDATE()\n"));
+	}
+#endif
 
 	// production updates
 	{
 		TheBuildAssistant->UPDATE();
 	}
+#ifdef _DEBUG
+	if (now == 0)
+	{
+		DEBUG_LOG(("GameLogic::update frame0 - after TheBuildAssistant->UPDATE()\n"));
+	}
+#endif
 
 	// update partition info
 	{
 		ThePartitionManager->UPDATE();
 	}
+#ifdef _DEBUG
+	if (now == 0)
+	{
+		DEBUG_LOG(("GameLogic::update frame0 - after ThePartitionManager->UPDATE()\n"));
+	}
+#endif
 
 	//
 	// End of frame clean-up
@@ -3792,17 +3933,6 @@ void GameLogic::update( void )
 	TheLocomotorStore->UPDATE();	
 	TheVictoryConditions->UPDATE();
 
-#ifdef DO_COPY_PROTECTION
-	if (!isInShellGame() && isInGame())
-	{
-		if ((m_frame == 1024) && !CopyProtect::validate())
-		{
-			DEBUG_LOG(("Copy protection failed - bailing"));
-			GameMessage *msg = TheMessageStream->appendMessage(GameMessage::MSG_SELF_DESTRUCT);
-			msg->appendBooleanArgument(FALSE);
-		}
-	}
-#endif
 
 	{
 		//Handle disabled statii (and re-enable objects once frame matches)

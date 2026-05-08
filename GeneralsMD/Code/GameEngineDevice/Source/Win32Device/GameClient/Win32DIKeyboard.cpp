@@ -47,6 +47,8 @@ struct ErrorLookup
 	HRESULT error;
 	char *string;
 };
+#pragma warning(push)
+#pragma warning(disable: 4838) // DIERR_* defines are unsigned long; HRESULT is signed long
 static ErrorLookup errorLookup[] = 
 {
 { DIERR_ACQUIRED, "DIERR_ACQUIRED" },
@@ -82,6 +84,7 @@ static ErrorLookup errorLookup[] =
 { DIERR_UNSUPPORTED, "DIERR_UNSUPPORTED" },
 { 0, NULL }
 };
+#pragma warning(pop)
 
 
 ///////////////////////////////////////////////////////////////////////////////

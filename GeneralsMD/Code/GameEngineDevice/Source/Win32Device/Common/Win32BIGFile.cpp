@@ -66,7 +66,7 @@ File* Win32BIGFile::openFile( const Char *filename, Int access )
 
 	RAMFile *ramFile = NULL;
 	
-	if (BitTest(access, File::STREAMING)) 
+	if ((access & File::STREAMING) != 0) 
 		ramFile = newInstance( StreamingArchiveFile );
 	else 
 		ramFile = newInstance( RAMFile );

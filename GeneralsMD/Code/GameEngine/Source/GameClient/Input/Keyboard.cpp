@@ -54,9 +54,10 @@ void Keyboard::createStreamMessages( void )
 	if( TheMessageStream == NULL )
 		return;
 
+	Int index = 0;
 	KeyboardIO *key = getFirstKey();
 	GameMessage *msg = NULL;
-	while( key->key != KEY_NONE )
+	while( index < NUM_KEYS && key->key != KEY_NONE )
 	{
 
 		// add message to stream
@@ -90,8 +91,14 @@ void Keyboard::createStreamMessages( void )
 
 		// next key please
 		key++;
+		index++;
 
 	}  // end while
+
+	if( index >= NUM_KEYS )
+	{
+		DEBUG_LOG(( "Keyboard::createStreamMessages - key stream exceeded %d entries; truncating for this frame\n", NUM_KEYS ));
+	}
 
 }  // end createStreamMessages
 
@@ -107,6 +114,12 @@ void Keyboard::updateKeys( void )
 	{
 		do
 		{
+			if( index >= NUM_KEYS - 1 )
+			{
+				DEBUG_LOG(( "Keyboard::updateKeys - keyboard event buffer overflow; truncating input for this frame\n" ));
+				m_keys[ NUM_KEYS - 1 ].key = KEY_NONE;
+				break;
+			}
 
 			// get a single key
 			getKey( &m_keys[ index ] );
@@ -126,12 +139,17 @@ void Keyboard::updateKeys( void )
 
 		}
 		while( m_keys[ index ].key == KEY_LOST );
+
+		if( index >= NUM_KEYS - 1 )
+		{
+			break;
+		}
 	} 
 	while( m_keys[ index++ ].key != KEY_NONE );
 
 	// update keyboard status array
 	index = 0;
-	while( m_keys[ index ].key != KEY_NONE )
+	while( index < NUM_KEYS && m_keys[ index ].key != KEY_NONE )
 	{
 
 		/** @todo -- if we don't have focus, we could destroy all the keys retrieved
@@ -178,7 +196,7 @@ void Keyboard::updateKeys( void )
 	if( m_modifiers )
 	{
 		index = 0;
-		while( m_keys[ index ].key != KEY_NONE )
+		while( index < NUM_KEYS && m_keys[ index ].key != KEY_NONE )
 		{
 
 			// set in the modifier data into the already existing up/down state
@@ -208,8 +226,14 @@ Bool Keyboard::checkKeyRepeat( void )
 //		return FALSE;
 
 	// Find end of real keys for this frame
-	while( m_keys[ index ].key != KEY_NONE )
+	while( index < (NUM_KEYS - 1) && m_keys[ index ].key != KEY_NONE )
 		index++;
+
+	if( index >= (NUM_KEYS - 1) )
+	{
+		DEBUG_LOG(( "Keyboard::checkKeyRepeat - key buffer is full; skipping auto-repeat for this frame\n" ));
+		return FALSE;
+	}
 
 	// Scan Keyboard status array for first key down
 	// long enough to repeat
@@ -331,7 +355,7 @@ void Keyboard::initKeyNames( void )
 
 	HKL kLayout = GetKeyboardLayout(0);
 
-	Int low = (UnsignedInt)kLayout & 0xFFFF;
+	Int low = static_cast<Int>(reinterpret_cast<UINT_PTR>(kLayout) & 0xFFFF);
 	LanguageID currentLanguage = OurLanguage;
 	if(low == 0x040c
 		 || low == 0x080c
@@ -447,8 +471,8 @@ void Keyboard::initKeyNames( void )
 
 			_set_keyname_(L'1',				L'!',				L'\0',	KEY_1  );
 			_set_keyname_(L'2',				L'\"',			L'\0',	KEY_2  );
-			_set_keyname_(L'3',				0x00A3,			L'\0',	KEY_3  );	//£
-			_set_keyname_(L'4',				L'$',				L'€',		KEY_4  );
+			_set_keyname_(L'3',				0x00A3,			L'\0',	KEY_3  );	//ï¿½
+			_set_keyname_(L'4',				L'$',				0x20AC,		KEY_4  );
 			_set_keyname_(L'5',				L'%',				L'\0',	KEY_5  );
 			_set_keyname_(L'6',				L'^',				L'\0',	KEY_6  );
 			_set_keyname_(L'7',				L'&',				L'\0',	KEY_7  );
@@ -465,7 +489,7 @@ void Keyboard::initKeyNames( void )
 
 			_set_keyname_(L';',				L':',				L'\0',	KEY_SEMICOLON  );
 			_set_keyname_(L'\'',			L'@',				L'\0',	KEY_APOSTROPHE  );
-			_set_keyname_(L'`',				0x00AC,			0x00A6,	KEY_TICK  );	//¬¦
+			_set_keyname_(L'`',				0x00AC,			0x00A6,	KEY_TICK  );	//ï¿½ï¿½
 			_set_keyname_(L'#',				L'~',				L'\0',	KEY_BACKSLASH  );
 
 			_set_keyname_(L'-',				L'_',				L'\0',	KEY_MINUS  );
@@ -496,7 +520,7 @@ void Keyboard::initKeyNames( void )
 			_set_keyname_(L'j',				L'J',				L'\0',	KEY_J  );
 			_set_keyname_(L'k',				L'K',				L'\0',	KEY_K  );
 			_set_keyname_(L'l',				L'L',				L'\0',	KEY_L  );
-			_set_keyname_(L'm',				L'M',				0x00B5,	KEY_M  );	//µ
+			_set_keyname_(L'm',				L'M',				0x00B5,	KEY_M  );	//ï¿½
 			_set_keyname_(L'n',				L'N',				L'\0',	KEY_N  );
 			_set_keyname_(L'o',				L'O',				L'\0',	KEY_O  );
 			_set_keyname_(L'p',				L'P',				L'\0',	KEY_P  );
@@ -512,8 +536,8 @@ void Keyboard::initKeyNames( void )
 			_set_keyname_(L'y',				L'Y',				L'\0',	KEY_Z  );
 
 			_set_keyname_(L'1',				L'!',				L'\0',	KEY_1  );
-			_set_keyname_(L'2',				L'"',				0x00B2,	KEY_2  );	//²
-			_set_keyname_(L'3',				0x00A7,			0x00B3,	KEY_3  );	//§³
+			_set_keyname_(L'2',				L'"',				0x00B2,	KEY_2  );	//ï¿½
+			_set_keyname_(L'3',				0x00A7,			0x00B3,	KEY_3  );	//ï¿½ï¿½
 			_set_keyname_(L'4',				L'$',				L'\0',	KEY_4  );
 			_set_keyname_(L'5',				L'%',				L'\0',	KEY_5  );
 			_set_keyname_(L'6',				L'&',				L'\0',	KEY_6  );
@@ -526,16 +550,16 @@ void Keyboard::initKeyNames( void )
 			_set_keyname_(L'.',				L':',				L'\0',	KEY_PERIOD  );
 			_set_keyname_(L'-',				L'_',				L'\0',	KEY_SLASH  );
 
-			_set_keyname_(0x00FC,			0x00DC,			L'\0',	KEY_LBRACKET  );		//üÜ
+			_set_keyname_(0x00FC,			0x00DC,			L'\0',	KEY_LBRACKET  );		//ï¿½ï¿½
 			_set_keyname_(L'+',				L'*',				L'~',		KEY_RBRACKET  );
 
-			_set_keyname_(0x00F6,			0x00D6,			L'\0',	KEY_SEMICOLON  );		//öÖ
-			_set_keyname_(0x00E4,			0x00C4,			L'\0',	KEY_APOSTROPHE  );	//äÄ
-			_set_keyname_(L'^',				0x00B0,			L'\0',	KEY_TICK  );				//°
+			_set_keyname_(0x00F6,			0x00D6,			L'\0',	KEY_SEMICOLON  );		//ï¿½ï¿½
+			_set_keyname_(0x00E4,			0x00C4,			L'\0',	KEY_APOSTROPHE  );	//ï¿½ï¿½
+			_set_keyname_(L'^',				0x00B0,			L'\0',	KEY_TICK  );				//ï¿½
 			_set_keyname_(L'#',				L'\'',			L'\0',	KEY_BACKSLASH  );
 
-			_set_keyname_(0x00DF,			L'?',				L'\\',	KEY_MINUS  );				//ß
-			_set_keyname_(0x00B4,			L'`',				L'\0',	KEY_EQUAL  );				//´
+			_set_keyname_(0x00DF,			L'?',				L'\\',	KEY_MINUS  );				//ï¿½
+			_set_keyname_(0x00B4,			L'`',				L'\0',	KEY_EQUAL  );				//ï¿½
 
 			_set_keyname_(L'<',				L'>',				L'|',		KEY_102  );
 
@@ -578,29 +602,29 @@ void Keyboard::initKeyNames( void )
 			_set_keyname_(L'w',				L'W',				L'\0',	KEY_Z  );
 
 			_set_keyname_(L'&',				L'1',				L'\0',	KEY_1  );
-			_set_keyname_(0x00E9,			L'2',				L'~',		KEY_2  );	//é
+			_set_keyname_(0x00E9,			L'2',				L'~',		KEY_2  );	//ï¿½
 			_set_keyname_(L'"',				L'3',				L'#',		KEY_3  );
 			_set_keyname_(L'\'',			L'4',				L'{',		KEY_4  );
 			_set_keyname_(L'(',				L'5',				L'[',		KEY_5  );
 			_set_keyname_(L'-',				L'6',				L'|',		KEY_6  );
-			_set_keyname_(0x00E8,			L'7',				L'`',		KEY_7  );	//è
+			_set_keyname_(0x00E8,			L'7',				L'`',		KEY_7  );	//ï¿½
 			_set_keyname_(L'_',				L'8',				L'\\',	KEY_8  );
-			_set_keyname_(0x00E7,			L'9',				L'\0',	KEY_9  );	//ç
-			_set_keyname_(0x00E0,			L'0',				L'@',		KEY_0  );	//à
+			_set_keyname_(0x00E7,			L'9',				L'\0',	KEY_9  );	//ï¿½
+			_set_keyname_(0x00E0,			L'0',				L'@',		KEY_0  );	//ï¿½
 
 			_set_keyname_(L';',				L'.',				L'\0',	KEY_COMMA  );
 			_set_keyname_(L':',				L'/',				L'\0',	KEY_PERIOD  );
-			_set_keyname_(L'!',				0x00A7,			L'\0',	KEY_SLASH  );				//§
+			_set_keyname_(L'!',				0x00A7,			L'\0',	KEY_SLASH  );				//ï¿½
 
-			_set_keyname_(L'^',				0x00A8,			L'\0',	KEY_LBRACKET  );		//¨
-			_set_keyname_(L'$',				0x00A3,			0x00A4,	KEY_RBRACKET  );		//£¤
+			_set_keyname_(L'^',				0x00A8,			L'\0',	KEY_LBRACKET  );		//ï¿½
+			_set_keyname_(L'$',				0x00A3,			0x00A4,	KEY_RBRACKET  );		//ï¿½ï¿½
 
 			_set_keyname_(L'm',				L'M',				L'\0',	KEY_SEMICOLON  );
-			_set_keyname_(0x00F9,			L'%',				L'\0',	KEY_APOSTROPHE  );	//ù
-			_set_keyname_(0x00B2,			L'\0',			L'\0',	KEY_TICK  );				//²
-			_set_keyname_(L'*',				0x00B5,			L'\0',	KEY_BACKSLASH  );		//µ
+			_set_keyname_(0x00F9,			L'%',				L'\0',	KEY_APOSTROPHE  );	//ï¿½
+			_set_keyname_(0x00B2,			L'\0',			L'\0',	KEY_TICK  );				//ï¿½
+			_set_keyname_(L'*',				0x00B5,			L'\0',	KEY_BACKSLASH  );		//ï¿½
 
-			_set_keyname_(L')',				0x00B0,			L']',		KEY_MINUS  );				//°
+			_set_keyname_(L')',				0x00B0,			L']',		KEY_MINUS  );				//ï¿½
 			_set_keyname_(L'=',				L'+',				L'}',		KEY_EQUAL  );
 
 			_set_keyname_(L'<',				L'>',				L'\0',	KEY_102  );
@@ -645,7 +669,7 @@ void Keyboard::initKeyNames( void )
 
 			_set_keyname_(L'1',				L'!',				L'\0',	KEY_1  );
 			_set_keyname_(L'2',				L'"',				L'\0',	KEY_2  );
-			_set_keyname_(L'3',				0x00A3,			L'\0',	KEY_3  );		//£
+			_set_keyname_(L'3',				0x00A3,			L'\0',	KEY_3  );		//ï¿½
 			_set_keyname_(L'4',				L'$',				L'\0',	KEY_4  );
 			_set_keyname_(L'5',				L'%',				L'\0',	KEY_5  );
 			_set_keyname_(L'6',				L'&',				L'\0',	KEY_6  );
@@ -658,16 +682,16 @@ void Keyboard::initKeyNames( void )
 			_set_keyname_(L'.',				L':',				L'\0',	KEY_PERIOD  );
 			_set_keyname_(L'-',				L'_',				L'\0',	KEY_SLASH  );
 
-			_set_keyname_(0x00E8,			0x00E9,			L'[',		KEY_LBRACKET  );		//èé
+			_set_keyname_(0x00E8,			0x00E9,			L'[',		KEY_LBRACKET  );		//ï¿½ï¿½
 			_set_keyname_(L'+',				L'*',				L']',		KEY_RBRACKET  );
 
-			_set_keyname_(0x00F2,			0x00E7,			L'@',		KEY_SEMICOLON  );		//òç
-			_set_keyname_(0x00E0,			0x00B0,			L'#',		KEY_APOSTROPHE  );	//à°
+			_set_keyname_(0x00F2,			0x00E7,			L'@',		KEY_SEMICOLON  );		//ï¿½ï¿½
+			_set_keyname_(0x00E0,			0x00B0,			L'#',		KEY_APOSTROPHE  );	//ï¿½
 			_set_keyname_(L'\\',			L'|',				L'\0',	KEY_TICK  );
-			_set_keyname_(0x00F9,			0x00A7,			L'\0',	KEY_BACKSLASH  );		//ù§
+			_set_keyname_(0x00F9,			0x00A7,			L'\0',	KEY_BACKSLASH  );		//ï¿½ï¿½
 
 			_set_keyname_(L'\'',			L'?',				L'\0',	KEY_MINUS  );
-			_set_keyname_(0x00EC,			L'^',				L'\0',	KEY_EQUAL  );				//ì
+			_set_keyname_(0x00EC,			L'^',				L'\0',	KEY_EQUAL  );				//ï¿½
 
 			_set_keyname_(L'<',				L'>',				L'\0',	KEY_102  );
 
@@ -976,7 +1000,7 @@ Bool Keyboard::isAlt()
 WideChar Keyboard::getPrintableKey( UnsignedByte key,  Int state )
 {
 	if((key < 0 || key >=KEY_NAMES_COUNT) || ( state < 0 || state >= MAX_KEY_STATES))
-		return L'';
+		return L'\0';
 	if(state == 0)
 		return m_keyNames[key].stdKey;
 	else if(state == 1)

@@ -5250,6 +5250,22 @@ void ScriptEngine::init( void )
 	curTemplate->m_numUiStrings = 1;
 	curTemplate->m_uiStrings[0] = "Show Weather = ";
 
+	curTemplate = &m_actionTemplates[ScriptAction::ENABLE_DAY_NIGHT_CYCLE];
+	curTemplate->m_internalName = "ENABLE_DAY_NIGHT_CYCLE";
+	curTemplate->m_uiName = "Map/Environment/Enable day/night lighting cycle.";
+	curTemplate->m_numParameters = 1;
+	curTemplate->m_parameters[0] = Parameter::REAL;
+	curTemplate->m_numUiStrings = 2;
+	curTemplate->m_uiStrings[0] = "Enable day/night cycle, full cycle duration = ";
+	curTemplate->m_uiStrings[1] = " seconds.";
+
+	curTemplate = &m_actionTemplates[ScriptAction::DISABLE_DAY_NIGHT_CYCLE];
+	curTemplate->m_internalName = "DISABLE_DAY_NIGHT_CYCLE";
+	curTemplate->m_uiName = "Map/Environment/Disable day/night lighting cycle.";
+	curTemplate->m_numParameters = 0;
+	curTemplate->m_numUiStrings = 1;
+	curTemplate->m_uiStrings[0] = "Disable day/night cycle (restore map default lighting).";
+
 	Int i;
 	for (i=0; i<Condition::NUM_ITEMS; i++) {
 		AsciiString str;

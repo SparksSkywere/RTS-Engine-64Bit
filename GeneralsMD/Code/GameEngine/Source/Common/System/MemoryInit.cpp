@@ -574,6 +574,7 @@ static PoolSizeRec sizes[] =
 	{ "OutputChunk", 32, 32 },
 	{ "InputChunk", 32, 32 },
 	{ "AnimateWindow", 32, 32 },
+	{ "AnimWindow", 128, 32 },
 	{ "GameFont", 32, 32 },
 	{ "NetCommandRef", 256, 32 },
 	{ "GameMessageArgument", 1024, 256 },
@@ -726,6 +727,7 @@ void userMemoryAdjustPoolSize(const char *poolName, Int& initialAllocationCount,
 	if (initialAllocationCount > 0)
 		return;
 
+	// First try exact match (fastest, handles non-W3D pools)
 	for (const PoolSizeRec* p = sizes; p->name != NULL; ++p)
 	{
 		if (strcmp(p->name, poolName) == 0)
@@ -733,6 +735,24 @@ void userMemoryAdjustPoolSize(const char *poolName, Int& initialAllocationCount,
 			initialAllocationCount = p->initial;
 			overflowAllocationCount = p->overflow;
 			return;
+		}
+	}
+
+	// W3D pool names are formatted as "ClassName[size]" by createW3DMemPool.
+	// Fall back to a prefix match so that entries like "ShareBufferClass" cover
+	// all size variants such as "ShareBufferClass[88]".
+	const char* bracket = strchr(poolName, '[');
+	if (bracket != NULL)
+	{
+		int baseLen = (int)(bracket - poolName);
+		for (const PoolSizeRec* p = sizes; p->name != NULL; ++p)
+		{
+			if (strncmp(p->name, poolName, baseLen) == 0 && p->name[baseLen] == '\0')
+			{
+				initialAllocationCount = p->initial;
+				overflowAllocationCount = p->overflow;
+				return;
+			}
 		}
 	}
 

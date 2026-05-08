@@ -5461,7 +5461,7 @@ void Object::doCommandButton( const CommandButton *commandButton, CommandSourceT
 					}
 					else
 					{
-						DEBUG_CRASH( ("WARNING: Script doCommandButton for button %s cannot fire weapon with NO POSITION. Skipping.", commandButton->getName().str()) );
+						DEBUG_LOG( ("WARNING: Script doCommandButton for button %s cannot fire weapon with NO POSITION. Skipping.\n", commandButton->getName().str()) );
 					}
 					return;
 				}
@@ -5538,7 +5538,7 @@ void Object::doCommandButton( const CommandButton *commandButton, CommandSourceT
 			default:
 				break;
 		}
-		DEBUG_CRASH( ("WARNING: Script doCommandButton for button %s not implemented. Doing nothing.", commandButton->getName().str()) );
+		DEBUG_LOG( ("WARNING: Script doCommandButton for button %s not implemented. Doing nothing.\n", commandButton->getName().str()) );
 	}
 }
 
@@ -5558,7 +5558,14 @@ void Object::doCommandButtonAtObject( const CommandButton *commandButton, Object
 			case GUI_COMMAND_COMBATDROP:
 				if( ai )
 				{
-					ai->aiCombatDrop( obj, *(obj->getPosition()), cmdSource );
+					if (obj)
+					{
+						ai->aiCombatDrop( obj, *(obj->getPosition()), cmdSource );
+					}
+					else
+					{
+						DEBUG_LOG( ("WARNING: Script doCommandButtonAtObject for button %s has NO OBJECT target. Skipping.\n", commandButton->getName().str()) );
+					}
 				}
 				return;
 			case GUI_COMMAND_SPECIAL_POWER:
@@ -5608,7 +5615,7 @@ void Object::doCommandButtonAtObject( const CommandButton *commandButton, Object
 					}
 					else
 					{
-						DEBUG_CRASH( ("WARNING: Script doCommandButtonAtObject for button %s cannot fire weapon at AN OBJECT. Skipping.", commandButton->getName().str()) );
+						DEBUG_LOG( ("WARNING: Script doCommandButtonAtObject for button %s cannot fire weapon at AN OBJECT. Skipping.\n", commandButton->getName().str()) );
 					}
 					return;
 				}
@@ -5619,7 +5626,14 @@ void Object::doCommandButtonAtObject( const CommandButton *commandButton, Object
 			case GUICOMMANDMODE_SABOTAGE_BUILDING:
 				if( ai )
 				{
-					ai->aiEnter( obj, cmdSource );
+					if (obj)
+					{
+						ai->aiEnter( obj, cmdSource );
+					}
+					else
+					{
+						DEBUG_LOG( ("WARNING: Script doCommandButtonAtObject for button %s has NO OBJECT target. Skipping.\n", commandButton->getName().str()) );
+					}
 				}
 				return;
 
@@ -5653,7 +5667,7 @@ void Object::doCommandButtonAtObject( const CommandButton *commandButton, Object
 			default:
 				break;
 		}
-		DEBUG_CRASH( ("WARNING: Script doCommandButtonAtObject for button %s not implemented. Doing nothing.", commandButton->getName().str()) );
+		DEBUG_LOG( ("WARNING: Script doCommandButtonAtObject for button %s not implemented. Doing nothing.\n", commandButton->getName().str()) );
 	}
 }
 
@@ -5674,6 +5688,11 @@ void Object::doCommandButtonAtPosition( const CommandButton *commandButton, cons
 			{
 				if( commandButton->getSpecialPowerTemplate() )
 				{
+					if (!pos)
+					{
+						DEBUG_LOG( ("WARNING: Script doCommandButtonAtPosition for button %s has NO POSITION. Skipping.\n", commandButton->getName().str()) );
+						return;
+					}
 					CommandOption commandOptions = (CommandOption)(commandButton->getOptions() | COMMAND_FIRED_BY_SCRIPT);
 					doSpecialPowerAtLocation( commandButton->getSpecialPowerTemplate(), pos, INVALID_ANGLE, commandOptions, cmdSource == CMD_FROM_SCRIPT );
 					return;
@@ -5683,6 +5702,11 @@ void Object::doCommandButtonAtPosition( const CommandButton *commandButton, cons
 			case GUI_COMMAND_ATTACK_MOVE:
 				if( ai )
 				{
+					if (!pos)
+					{
+						DEBUG_LOG( ("WARNING: Script doCommandButtonAtPosition for button %s has NO POSITION. Skipping.\n", commandButton->getName().str()) );
+						return;
+					}
 					ai->aiAttackMoveToPosition( pos, commandButton->getMaxShotsToFire(), cmdSource );
 					return;
 				}
@@ -5696,6 +5720,11 @@ void Object::doCommandButtonAtPosition( const CommandButton *commandButton, cons
 				break;
 
 			case GUI_COMMAND_DOZER_CONSTRUCT:
+				if (!pos)
+				{
+					DEBUG_LOG( ("WARNING: Script doCommandButtonAtPosition for button %s has NO POSITION. Skipping.\n", commandButton->getName().str()) );
+					return;
+				}
 				TheBuildAssistant->buildObjectNow( this, commandButton->getThingTemplate(), pos, 0.0f, getControllingPlayer() );
 				return;
 
@@ -5714,7 +5743,7 @@ void Object::doCommandButtonAtPosition( const CommandButton *commandButton, cons
 					}
 					else
 					{
-						DEBUG_CRASH( ("WARNING: Script doCommandButtonAtPosition for button %s cannot fire weapon at A POSITION. Skipping.", commandButton->getName().str()) );
+						DEBUG_LOG( ("WARNING: Script doCommandButtonAtPosition for button %s cannot fire weapon at A POSITION. Skipping.\n", commandButton->getName().str()) );
 					}
 					return;
 				}
@@ -5751,7 +5780,7 @@ void Object::doCommandButtonAtPosition( const CommandButton *commandButton, cons
 			default:
 				break;
 		}
-		DEBUG_CRASH( ("WARNING: Script doCommandButtonAtPosition for button %s not implemented. Doing nothing.", commandButton->getName().str()) );
+		DEBUG_LOG( ("WARNING: Script doCommandButtonAtPosition for button %s not implemented. Doing nothing.\n", commandButton->getName().str()) );
 	}
 }
 
@@ -5768,7 +5797,7 @@ void Object::doCommandButtonUsingWaypoints( const CommandButton *commandButton, 
 		if( !BitTest( commandButton->getOptions(), CAN_USE_WAYPOINTS ) )
 		{
 			//Our button doesn't support waypoints.
-			DEBUG_CRASH( ("WARNING: Script doCommandButtonUsingWaypoints for button %s lacks CAN_USE_WAYPOINTS option. Doing nothing.", commandButton->getName().str()) );
+			DEBUG_LOG( ("WARNING: Script doCommandButtonUsingWaypoints for button %s lacks CAN_USE_WAYPOINTS option. Doing nothing.\n", commandButton->getName().str()) );
 			return;
 		}
 		switch( commandButton->getCommandType() )
@@ -5777,6 +5806,11 @@ void Object::doCommandButtonUsingWaypoints( const CommandButton *commandButton, 
 			{
 				if( commandButton->getSpecialPowerTemplate() )
 				{
+					if (!way)
+					{
+						DEBUG_LOG( ("WARNING: Script doCommandButtonUsingWaypoints for button %s has NO WAYPOINT PATH. Skipping.\n", commandButton->getName().str()) );
+						return;
+					}
 					CommandOption commandOptions = (CommandOption)(commandButton->getOptions() | COMMAND_FIRED_BY_SCRIPT);
 					doSpecialPowerUsingWaypoints( commandButton->getSpecialPowerTemplate(), way, commandOptions, cmdSource == CMD_FROM_SCRIPT );
 					return;
@@ -5818,7 +5852,7 @@ void Object::doCommandButtonUsingWaypoints( const CommandButton *commandButton, 
 			default:
 				break;
 		}
-		DEBUG_CRASH( ("WARNING: Script doCommandButtonUsingWaypoints for button %s not implemented. Doing nothing.", commandButton->getName().str()) );
+		DEBUG_LOG( ("WARNING: Script doCommandButtonUsingWaypoints for button %s not implemented. Doing nothing.\n", commandButton->getName().str()) );
 	}
 }
 

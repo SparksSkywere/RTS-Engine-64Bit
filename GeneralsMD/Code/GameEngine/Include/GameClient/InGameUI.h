@@ -736,6 +736,7 @@ protected:
 	// Video playback data
 	VideoBuffer*								m_videoBuffer;			///< video playback buffer
 	VideoStreamInterface*				m_videoStream;			///< Video stream;
+	Bool										m_pausedAudioForMovie;	///< True when this UI instance paused audio for movie playback.
 
 	// Video playback data
 	VideoBuffer*								m_cameoVideoBuffer;///< video playback buffer

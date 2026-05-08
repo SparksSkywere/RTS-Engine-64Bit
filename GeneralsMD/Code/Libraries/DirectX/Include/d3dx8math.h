@@ -7,7 +7,9 @@
 //
 //////////////////////////////////////////////////////////////////////////////
 
-#include "d3dx8.h"
+// Redirect D3DX8 math to D3DX9 (math types are identical)
+// This prevents d3d8.h from being included after dx9compat.h aliases
+#include "d3dx9.h"
 
 #ifndef __D3DX8MATH_H__
 #define __D3DX8MATH_H__

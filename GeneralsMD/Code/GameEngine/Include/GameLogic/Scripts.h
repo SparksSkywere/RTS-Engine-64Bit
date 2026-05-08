@@ -546,6 +546,8 @@ public:
 		TEAM_SET_BOOBYTRAPPED,										///< Add boobytrap to all units on team.
 		SHOW_WEATHER,															///< show map defined weather.    
 		AI_PLAYER_BUILD_TYPE_NEAREST_TEAM,				///< Tell the ai player to build an object nearest team.
+		ENABLE_DAY_NIGHT_CYCLE,								///< Enable smooth day/night lighting cycle with given duration (seconds).
+		DISABLE_DAY_NIGHT_CYCLE,							///< Disable day/night lighting cycle and restore map default TOD.
 		// add new items here, please
 		NUM_ITEMS
 	};

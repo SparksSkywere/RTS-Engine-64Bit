@@ -169,6 +169,8 @@ void W3DMainMenuDraw( GameWindow *window, WinInstanceData *instData )
 
 	
 
+	#pragma warning(push)
+	#pragma warning(disable: 4838) // double * Int arithmetic in braced init; values fit
 	IRegion2D	topHorizontal1 ={pos.x, pos.y, pos.x + size.x, pos.y	};
 	IRegion2D	topHorizontal1drop ={pos.x, pos.y+1, pos.x + size.x, pos.y+1	};
 
@@ -187,6 +189,7 @@ void W3DMainMenuDraw( GameWindow *window, WinInstanceData *instData )
 	IRegion2D	verticle4 ={pos.x + (size.x * .885), pos.y , pos.x + (size.x * .885), height 	};
 //	static IRegion2D	verticle5 ={pos.x + (size.x * .7250), pos.y + (size.y * .12), pos.x + (size.x * .7250), pos.y + (size.y * .86) 	};
 //	static IRegion2D	verticle6 ={pos.x + (size.x * .9062), pos.y + (size.y * .12), pos.x + (size.x * .9062), pos.y + (size.y * .86) 	};
+	#pragma warning(pop)
 
 
 	TheDisplay->drawLine(topHorizontal1.lo.x,topHorizontal1.lo.y,topHorizontal1.hi.x,topHorizontal1.hi.y,2,color);
@@ -233,6 +236,8 @@ void W3DMainMenuFourDraw( GameWindow *window, WinInstanceData *instData )
 
 	
 
+	#pragma warning(push)
+	#pragma warning(disable: 4838) // double * Int arithmetic in braced init; values fit
 	IRegion2D	topHorizontal1 ={pos.x, pos.y, pos.x + size.x, pos.y	};
 	IRegion2D	topHorizontal1drop ={pos.x, pos.y+1, pos.x + size.x, pos.y+1	};
 
@@ -251,6 +256,7 @@ void W3DMainMenuFourDraw( GameWindow *window, WinInstanceData *instData )
 	IRegion2D	verticle4 ={pos.x + (size.x * .885), pos.y , pos.x + (size.x * .885), height 	};
 //	static IRegion2D	verticle5 ={pos.x + (size.x * .7250), pos.y + (size.y * .12), pos.x + (size.x * .7250), pos.y + (size.y * .86) 	};
 //	static IRegion2D	verticle6 ={pos.x + (size.x * .9062), pos.y + (size.y * .12), pos.x + (size.x * .9062), pos.y + (size.y * .86) 	};
+	#pragma warning(pop)
 
 
 	TheDisplay->drawLine(topHorizontal1.lo.x,topHorizontal1.lo.y,topHorizontal1.hi.x,topHorizontal1.hi.y,2,color);

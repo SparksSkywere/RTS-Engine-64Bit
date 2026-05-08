@@ -684,8 +684,8 @@ void ReleaseCrash(const char *reason)
 	{
 		fprintf(theReleaseCrashLogFile, "Release Crash at %s; Reason %s\n", getCurrentTimeString(), reason);
 		fprintf(theReleaseCrashLogFile, "\nLast error:\n%s\n\nCurrent stack:\n", g_LastErrorDump.str());
-		const int STACKTRACE_SIZE	= 12;
-		const int STACKTRACE_SKIP = 6;
+		const int STACKTRACE_SIZE	= 24;
+		const int STACKTRACE_SKIP = 2;  // reduced from 6 – Release builds inline aggressively
 		void* stacktrace[STACKTRACE_SIZE];
 		::FillStackAddresses(stacktrace, STACKTRACE_SIZE, STACKTRACE_SKIP);
 		::StackDumpFromAddresses(stacktrace, STACKTRACE_SIZE, releaseCrashLogOutput);
@@ -771,10 +771,12 @@ void ReleaseCrashLocalized(const AsciiString& p, const AsciiString& m)
 	theReleaseCrashLogFile = fopen(curbuf, "w");
 	if (theReleaseCrashLogFile)
 	{
-		fprintf(theReleaseCrashLogFile, "Release Crash at %s; Reason %s\n", getCurrentTimeString(), mesg.str());
+		AsciiString mesgA;
+		mesgA.translate(mesg);
+		fprintf(theReleaseCrashLogFile, "Release Crash at %s; Reason %s\n", getCurrentTimeString(), mesgA.str());
 
-		const int STACKTRACE_SIZE	= 12;
-		const int STACKTRACE_SKIP = 6;
+		const int STACKTRACE_SIZE	= 24;
+		const int STACKTRACE_SKIP = 2;  // reduced from 6 – Release builds inline aggressively
 		void* stacktrace[STACKTRACE_SIZE];
 		::FillStackAddresses(stacktrace, STACKTRACE_SIZE, STACKTRACE_SKIP);
 		::StackDumpFromAddresses(stacktrace, STACKTRACE_SIZE, releaseCrashLogOutput);

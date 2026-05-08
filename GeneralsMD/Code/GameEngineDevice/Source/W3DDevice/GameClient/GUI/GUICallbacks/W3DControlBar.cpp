@@ -39,6 +39,13 @@
 #include "GameClient/ControlBarScheme.h"
 #include "GameClient/MapUtil.h"
 #include "GameLogic/GameLogic.h"
+
+// Restore BitTest as bitmask operation (not Windows _bittest intrinsic)
+#ifdef BitTest
+#undef BitTest
+#endif
+#define BitTest(x, i) (((x) & (i)) != 0)
+
 #ifdef _INTERNAL
 // for occasional debugging...
 //#pragma optimize("", off)

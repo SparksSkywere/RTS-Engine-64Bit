@@ -1186,6 +1186,16 @@ GameWindow *GameWindow::winGetChild( void )
 
 }  // end WinGetChild
 
+// GameWindow::winSetChild ====================================================
+/** Set the first child of this window (use with care - must maintain valid chain) */
+//=============================================================================
+void GameWindow::winSetChild( GameWindow *child )
+{
+
+	m_child = child;
+
+}  // end WinSetChild
+
 // GameWindow::winSetOwner ====================================================
 /** Sets the window's owner */
 //=============================================================================

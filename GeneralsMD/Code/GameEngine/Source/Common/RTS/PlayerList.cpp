@@ -293,18 +293,25 @@ void PlayerList::updateTeamStates(void)
 //-----------------------------------------------------------------------------
 Team *PlayerList::validateTeam( AsciiString owner )
 {
-	// owner could be a player or team. first, check team names.
-	Team *t = TheTeamFactory->findTeam(owner);
-	if (t)
+	// owner could be a player or team.
+	if( !owner.isEmpty() )
 	{
-		//DEBUG_LOG(("assigned obj %08lx to team %s\n",obj,owner.str()));
-	}	
-	else
-	{
-		DEBUG_CRASH(("no team or player named %s could be found!\n", owner.str()));
-		t = getNeutralPlayer()->getDefaultTeam();
+		Team *t = TheTeamFactory->findTeam( owner );
+		if( t )
+		{
+			return t;
+		}
+
+		Player *p = findPlayerWithNameKey( NAMEKEY( owner ) );
+		if( p )
+		{
+			return p->getDefaultTeam();
+		}
 	}
-	return t;
+
+	DEBUG_LOG(("PlayerList::validateTeam - no team or player named %s could be found; defaulting to neutral\n",
+		owner.str()));
+	return getNeutralPlayer()->getDefaultTeam();
 }
 
 //-----------------------------------------------------------------------------

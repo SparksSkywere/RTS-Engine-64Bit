@@ -12,7 +12,7 @@
 */
 
 #ifndef MAC
-#include <mem.h>
+#include <memory.h>
 #endif
 
 /*
@@ -395,7 +395,7 @@ if (exponent_difference < 0)
         }
         else
         {
-                ptr->exp+=exponent_difference;
+                                ptr->exp = (short)(ptr->exp + exponent_difference);
                 StickyShiftRightMant(ptr, exponent_difference);
         }
 }

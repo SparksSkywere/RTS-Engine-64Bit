@@ -221,8 +221,7 @@ WindowMsgHandledType GadgetComboBoxInput( GameWindow *window, UnsignedInt msg,
 
 		}  // end right up, right click
 
-/*
-		// ------------------------------------------------------------------------
+// ------------------------------------------------------------------------
 		case GWM_MOUSE_ENTERING:
 		{
 
@@ -231,44 +230,65 @@ WindowMsgHandledType GadgetComboBoxInput( GameWindow *window, UnsignedInt msg,
 
 				BitSet( instData->m_state, WIN_STATE_HILITED );
 				TheWindowManager->winSendSystemMsg( window->winGetOwner(), 
-																						GBM_MOUSE_ENTERING,
-																						(WindowMsgData)window, 
-																						0 );
-				TheWindowManager->winSetFocus( window );
+																		GBM_MOUSE_ENTERING,
+																		(WindowMsgData)window, 
+																		0 );
+			}
 
-			}  // end if
+			if( editBox != NULL )
+			{
+				WinInstanceData *editInstData = editBox->winGetInstanceData();
+				if( editInstData != NULL )
+					BitSet( editInstData->m_state, WIN_STATE_HILITED );
+			}
+			if( window->winGetChild() && BitTest( window->winGetChild()->winGetStyle(), GWS_PUSH_BUTTON ) )
+			{
+				WinInstanceData *instDataChild = window->winGetChild()->winGetInstanceData();
+				BitSet( instDataChild->m_state, WIN_STATE_HILITED );
+			}
 
 			break;
 
-		}  //  end mouse entering
+		}  // end mouse entering
 
 		// ------------------------------------------------------------------------
 		case GWM_MOUSE_LEAVING:
 		{
 
-			if( BitTest( instData->getStyle(), GWS_MOUSE_TRACK )) 
+			if( BitTest( instData->getStyle(), GWS_MOUSE_TRACK ) ) 
 			{
 
 				BitClear( instData->m_state, WIN_STATE_HILITED );
 				TheWindowManager->winSendSystemMsg( window->winGetOwner(), 
-																						GBM_MOUSE_LEAVING,
-																						(WindowMsgData)window, 
-																						0 );
-			}  // end if
+																GBM_MOUSE_LEAVING,
+																(WindowMsgData)window, 
+																0 );
+			}
+
+			if( editBox != NULL )
+			{
+				WinInstanceData *editInstData = editBox->winGetInstanceData();
+				if( editInstData != NULL )
+					BitClear( editInstData->m_state, WIN_STATE_HILITED );
+			}
+			if( window->winGetChild() && BitTest( window->winGetChild()->winGetStyle(), GWS_PUSH_BUTTON ) )
+			{
+				WinInstanceData *instDataChild = window->winGetChild()->winGetInstanceData();
+				BitClear( instDataChild->m_state, WIN_STATE_HILITED );
+			}
 
 			break;
 
 		}  // end mouse leaving
-*/
 
 		// ------------------------------------------------------------------------
 		case GWM_LEFT_DRAG:
 
 			if (BitTest( instData->getStyle(), GWS_MOUSE_TRACK ) )
 				TheWindowManager->winSendSystemMsg( window->winGetOwner(), 
-																						GGM_LEFT_DRAG,
-																						(WindowMsgData)window, 
-																						0 );
+																GGM_LEFT_DRAG,
+																(WindowMsgData)window, 
+																0 );
 			break;
 
 		// ------------------------------------------------------------------------
@@ -471,7 +491,7 @@ WindowMsgHandledType GadgetComboBoxSystem( GameWindow *window, UnsignedInt msg,
 			if ( comboData->listBox )
 				GadgetListBoxReset(comboData->listBox);
 			if ( comboData->editBox )
-				GadgetTextEntrySetText(comboData->editBox, UnicodeString.TheEmptyString );
+				GadgetTextEntrySetText(comboData->editBox, UnicodeString::TheEmptyString );
 			comboData->entryCount = 0;
 			//HideListBox(window);	
 			break;

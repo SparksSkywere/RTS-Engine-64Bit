@@ -166,8 +166,8 @@ void ShdHWVertexShader::Destroy()
 {
 	if (Shader) 
 	{
-		DX8Wrapper::_Get_D3D_Device8()->SetVertexShader(D3DFVF_XYZ|D3DFVF_DIFFUSE);
-		DX8Wrapper::_Get_D3D_Device8()->DeleteVertexShader(Shader);
+		D3D9_SetVertexShader(DX8Wrapper::_Get_D3D_Device9(), D3DFVF_XYZ|D3DFVF_DIFFUSE);
+		D3D9_DeleteVertexShader(DX8Wrapper::_Get_D3D_Device9(), Shader);
 		Shader=0;
 	}
 }
@@ -177,7 +177,7 @@ void ShdHWVertexShader::Destroy()
 /*! 05/27/02 5:39p KJM Created
 /*! 06/06/02 KM added software vertex shader fallback check
 */
-DWORD ShdHWVertexShader::Create
+UINT_PTR ShdHWVertexShader::Create
 (
 	char* file_name, 
 	DWORD* vertex_shader_declaration
@@ -195,24 +195,20 @@ DWORD ShdHWVertexShader::Create
 
 	// try hardware first
 	Using_Hardware=true;
-	HRESULT result=DX8Wrapper::_Get_D3D_Device8()->CreateVertexShader
-	(
+	HRESULT result=D3D9_CreateVertexShader_Compat(DX8Wrapper::_Get_D3D_Device9(),
 		(DWORD*)vertex_shader_declaration,
 		(DWORD*)shader_code->GetBufferPointer(),
-		(DWORD*)&Shader,
-		0
-	);
+		&Shader,
+		0);
 	if (result!=D3D_OK)
 	{
 		// try software
 		Using_Hardware=false;
-		result=DX8Wrapper::_Get_D3D_Device8()->CreateVertexShader
-		(
+		result=D3D9_CreateVertexShader_Compat(DX8Wrapper::_Get_D3D_Device9(),
 			(DWORD*)vertex_shader_declaration,
 			(DWORD*)shader_code->GetBufferPointer(),
-			(DWORD*)&Shader,
-			D3DUSAGE_SOFTWAREPROCESSING
-		);
+			&Shader,
+			D3DUSAGE_SOFTWAREPROCESSING);
 		WWASSERT_PRINT(result==D3D_OK,"Failed to create vertex shader");
 	}
 
@@ -226,7 +222,7 @@ DWORD ShdHWVertexShader::Create
 //! Create Vertex Shader from a dword constant and vertex stream declaration
 /*! 07/19/02 3:39p KJM Created
 */
-DWORD ShdHWVertexShader::Create
+UINT_PTR ShdHWVertexShader::Create
 (
 	DWORD* shader_code_str, 
 	DWORD* vertex_shader_declaration
@@ -253,24 +249,20 @@ DWORD ShdHWVertexShader::Create
 
 	// try hardware first
 	Using_Hardware=true;
-	result=DX8Wrapper::_Get_D3D_Device8()->CreateVertexShader
-	(
+	result=D3D9_CreateVertexShader_Compat(DX8Wrapper::_Get_D3D_Device9(),
 		(DWORD*)vertex_shader_declaration,
 		(DWORD*)shader_code->GetBufferPointer(),
-		(DWORD*)&Shader,
-		0
-	);
+		&Shader,
+		0);
 	if (result!=D3D_OK)
 	{
 		// try software
 		Using_Hardware=false;
-		result=DX8Wrapper::_Get_D3D_Device8()->CreateVertexShader
-		(
+		result=D3D9_CreateVertexShader_Compat(DX8Wrapper::_Get_D3D_Device9(),
 			(DWORD*)vertex_shader_declaration,
 			(DWORD*)shader_code->GetBufferPointer(),
-			(DWORD*)&Shader,
-			D3DUSAGE_SOFTWAREPROCESSING
-		);
+			&Shader,
+			D3DUSAGE_SOFTWAREPROCESSING);
 		WWASSERT_PRINT(result==D3D_OK,"Failed to create vertex shader");
 		if (result!=D3D_OK)
 		{
@@ -298,8 +290,8 @@ void ShdHWPixelShader::Destroy()
 {
 	if (Shader) 
 	{
-		DX8Wrapper::_Get_D3D_Device8()->SetPixelShader(0);
-		DX8Wrapper::_Get_D3D_Device8()->DeletePixelShader(Shader);
+		DX8Wrapper::_Get_D3D_Device9()->SetPixelShader(0);
+		D3D9_DeletePixelShader(DX8Wrapper::_Get_D3D_Device9(), Shader);
 		Shader=0;
 	}
 }
@@ -308,7 +300,7 @@ void ShdHWPixelShader::Destroy()
 //! Create Pixel Shader from a file
 /*! 5/27/02 5:39p KJM Created
 */
-DWORD ShdHWPixelShader::Create(char* file_name)
+UINT_PTR ShdHWPixelShader::Create(char* file_name)
 {
 	// Create pixel shader
 	LPD3DXBUFFER shader_code=NULL;
@@ -320,11 +312,9 @@ DWORD ShdHWPixelShader::Create(char* file_name)
 		&shader_code
 	);
 
-	HRESULT result=DX8Wrapper::_Get_D3D_Device8()->CreatePixelShader
-	(
+	HRESULT result=D3D9_CreatePixelShader_Compat(DX8Wrapper::_Get_D3D_Device9(),
 		(DWORD*)shader_code->GetBufferPointer(), 
-		(DWORD*)&Shader
-	);
+		&Shader);
 	WWASSERT_PRINT(result==D3D_OK,"Failed to create pixel shader");
 
 	return Shader;
@@ -335,7 +325,7 @@ DWORD ShdHWPixelShader::Create(char* file_name)
 //! Create Pixel Shader from a dword constant 
 /*! 07/19/02 3:39p KJM Created
 */
-DWORD ShdHWPixelShader::Create(DWORD* shader_code_str)
+UINT_PTR ShdHWPixelShader::Create(DWORD* shader_code_str)
 {
 	HRESULT result;
 	LPD3DXBUFFER shader_code=NULL;
@@ -356,11 +346,9 @@ DWORD ShdHWPixelShader::Create(DWORD* shader_code_str)
 		WWASSERT_PRINT(result==D3D_OK,"Failed to assemble shader");
 	}
 
-	result=DX8Wrapper::_Get_D3D_Device8()->CreatePixelShader
-	(
+	result=D3D9_CreatePixelShader_Compat(DX8Wrapper::_Get_D3D_Device9(),
 		(DWORD*)shader_code->GetBufferPointer(), 
-		(DWORD*)&Shader
-	);
+		&Shader);
 	WWASSERT_PRINT(result==D3D_OK,"Failed to create pixel shader");
 
 	return Shader;

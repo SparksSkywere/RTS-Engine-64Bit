@@ -94,6 +94,11 @@ public:
 
 protected:
 
+	// Day/night cycle state
+	DWORD     m_dayNightStartTime;          ///< timeGetTime() when cycle began (0 = not started)
+	Int       m_dayNightTerrainTickCounter; ///< frames between terrain light rebuilds
+	TimeOfDay m_dayNightLastTOD;            ///< last discrete TOD notified to subsystems
+
 	virtual Keyboard *createKeyboard( void );								///< factory for the keyboard
 	virtual Mouse *createMouse( void );											///< factory for the mouse
 

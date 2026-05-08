@@ -277,7 +277,7 @@ IDirect3DTexture9* Load_Compressed_Texture(
 	for (unsigned level=0;level<mips;++level) {
 		IDirect3DSurface9* d3d_surface=NULL;
 		WWASSERT(d3d_texture);
-		DX8_ErrorCode(d3d_texture->GetSurfaceLevel(level/*-reduction_factor*/,&d3d_surface));
+		DX9_ErrorCode(d3d_texture->GetSurfaceLevel(level/*-reduction_factor*/,&d3d_surface));
 		dds_file.Copy_Level_To_Surface(level,d3d_surface);
 		d3d_surface->Release();
 	}
@@ -458,7 +458,7 @@ IDirect3DTexture9* TextureLoader::Load_Thumbnail(const StringClass& filename, co
 
 	// Lock all surfaces
 	for (level=0;level<sysmem_texture->GetLevelCount();++level) {
-		DX8_ErrorCode(
+		DX9_ErrorCode(
 			sysmem_texture->LockRect(
 				level,
 				&locked_rects[level],
@@ -496,7 +496,7 @@ IDirect3DTexture9* TextureLoader::Load_Thumbnail(const StringClass& filename, co
 
 	// Unlock all surfaces
 	for (level=0;level<sysmem_texture->GetLevelCount();++level) {
-		DX8_ErrorCode(sysmem_texture->UnlockRect(level));
+		DX9_ErrorCode(sysmem_texture->UnlockRect(level));
 	}
 #ifdef USE_MANAGED_TEXTURES
 	return sysmem_texture;
@@ -507,7 +507,7 @@ IDirect3DTexture9* TextureLoader::Load_Thumbnail(const StringClass& filename, co
 		dest_format,
 		TextureBaseClass::MIP_LEVELS_ALL,
 		D3DPOOL_DEFAULT);
-	DX8CALL(UpdateTexture(sysmem_texture,d3d_texture));
+	DX9CALL(UpdateTexture(sysmem_texture,d3d_texture));
 	sysmem_texture->Release();
 
 	WWDEBUG_SAY(("Created non-managed texture (%s)\n",filename));
@@ -536,7 +536,7 @@ IDirect3DSurface9* TextureLoader::Load_Surface_Immediate(
 		IDirect3DTexture9* comp_tex=Load_Compressed_Texture(filename,0,MIP_LEVELS_1,WW3D_FORMAT_UNKNOWN);
 		if (comp_tex) {
 			IDirect3DSurface9* d3d_surface=NULL;
-			DX8_ErrorCode(comp_tex->GetSurfaceLevel(0,&d3d_surface));
+			DX9_ErrorCode(comp_tex->GetSurfaceLevel(0,&d3d_surface));
 			comp_tex->Release();
 			return d3d_surface;
 		}
@@ -603,7 +603,7 @@ IDirect3DSurface9* TextureLoader::Load_Surface_Immediate(
 	IDirect3DSurface9* d3d_surface = DX8Wrapper::_Create_DX8_Surface(width,height,dest_format);
 	WWASSERT(d3d_surface);
 	D3DLOCKED_RECT locked_rect;
-	DX8_ErrorCode(
+	DX9_ErrorCode(
 		d3d_surface->LockRect(
 			&locked_rect,
 			NULL,
@@ -624,7 +624,7 @@ IDirect3DSurface9* TextureLoader::Load_Surface_Immediate(
 		targa.Header.CMapDepth>>3,
 		false);	// No mipmap
 
-	DX8_ErrorCode(d3d_surface->UnlockRect());
+	DX9_ErrorCode(d3d_surface->UnlockRect());
 
 	if (converted_surface) delete[] converted_surface;
 
@@ -1783,7 +1783,7 @@ void TextureLoadTaskClass::Lock_Surfaces(void)
 	for (unsigned int i = 0; i < MipLevelCount; ++i) 
 	{
 		D3DLOCKED_RECT locked_rect;
-		DX8_ErrorCode
+		DX9_ErrorCode
 		(
 			Peek_D3D_Texture()->LockRect
 			(
@@ -1806,14 +1806,14 @@ void TextureLoadTaskClass::Unlock_Surfaces(void)
 		if (LockedSurfacePtr[i]) 
 		{
 			WWASSERT(ThreadClass::_Get_Current_Thread_ID() == DX8Wrapper::_Get_Main_Thread_ID());
-			DX8_ErrorCode(Peek_D3D_Texture()->UnlockRect(i));
+			DX9_ErrorCode(Peek_D3D_Texture()->UnlockRect(i));
 		}
 		LockedSurfacePtr[i] = NULL;
 	}
 
 #ifndef USE_MANAGED_TEXTURES
 	IDirect3DTexture9* tex = DX8Wrapper::_Create_DX8_Texture(Width, Height, Format, Texture->MipLevelCount,D3DPOOL_DEFAULT);
-	DX8CALL(UpdateTexture(Peek_D3D_Texture(),tex));
+	DX9CALL(UpdateTexture(Peek_D3D_Texture(),tex));
 	Peek_D3D_Texture()->Release();
 	D3DTexture=tex;
 	WWDEBUG_SAY(("Created non-managed texture (%s)\n",Texture->Get_Full_Path()));
@@ -2164,7 +2164,7 @@ void CubeTextureLoadTaskClass::Lock_Surfaces(void)
 		for (unsigned int i=0; i<MipLevelCount; i++)
 		{
 			D3DLOCKED_RECT locked_rect;
-			DX8_ErrorCode
+			DX9_ErrorCode
 			(
 				Peek_D3D_Cube_Texture()->LockRect
 				(
@@ -2190,7 +2190,7 @@ void CubeTextureLoadTaskClass::Unlock_Surfaces(void)
 			if (LockedCubeSurfacePtr[f][i]) 
 			{
 				WWASSERT(ThreadClass::_Get_Current_Thread_ID() == DX8Wrapper::_Get_Main_Thread_ID());
-				DX8_ErrorCode
+				DX9_ErrorCode
 				(
 					Peek_D3D_Cube_Texture()->UnlockRect((D3DCUBEMAP_FACES)f,i)
 				);
@@ -2208,7 +2208,7 @@ void CubeTextureLoadTaskClass::Unlock_Surfaces(void)
 		Texture->MipLevelCount,
 		D3DPOOL_DEFAULT
 	);
-	DX8CALL(UpdateTexture(Peek_D3D_Volume_Texture(),tex));
+	DX9CALL(UpdateTexture(Peek_D3D_Volume_Texture(),tex));
 	Peek_D3D_Volume_Texture()->Release();
 	D3DTexture=tex;
 	WWDEBUG_SAY(("Created non-managed texture (%s)\n",Texture->Get_Full_Path()));
@@ -2534,7 +2534,7 @@ void VolumeTextureLoadTaskClass::Lock_Surfaces()
 	for (unsigned int i=0; i<MipLevelCount; i++)
 	{
 		D3DLOCKED_BOX locked_box;
-		DX8_ErrorCode
+		DX9_ErrorCode
 		(
 			Peek_D3D_Volume_Texture()->LockBox
 			(
@@ -2558,7 +2558,7 @@ void VolumeTextureLoadTaskClass::Unlock_Surfaces()
 		if (LockedSurfacePtr[i]) 
 		{
 			WWASSERT(ThreadClass::_Get_Current_Thread_ID() == DX8Wrapper::_Get_Main_Thread_ID());
-			DX8_ErrorCode
+			DX9_ErrorCode
 			(
 				Peek_D3D_Volume_Texture()->UnlockBox(i)
 			);
@@ -2568,7 +2568,7 @@ void VolumeTextureLoadTaskClass::Unlock_Surfaces()
 
 #ifndef USE_MANAGED_TEXTURES
 	IDirect3DTexture9* tex = DX8Wrapper::_Create_DX8_Volume_Texture(Width, Height, Depth, Format, Texture->MipLevelCount,D3DPOOL_DEFAULT);
-	DX8CALL(UpdateTexture(Peek_D3D_Volume_Texture(),tex));
+	DX9CALL(UpdateTexture(Peek_D3D_Volume_Texture(),tex));
 	Peek_D3D_Volume_Texture()->Release();
 	D3DTexture=tex;
 	WWDEBUG_SAY(("Created non-managed texture (%s)\n",Texture->Get_Full_Path()));

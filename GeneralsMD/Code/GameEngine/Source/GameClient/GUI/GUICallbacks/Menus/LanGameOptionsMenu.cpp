@@ -214,14 +214,14 @@ static void playerTooltip(GameWindow *window,
 	if (idx == -1)
 		return;
 
-	LANGameSlot *slot = TheLAN->GetMyGame()->getLANSlot(i);
+	LANGameSlot *slot = TheLAN->GetMyGame()->getLANSlot(idx);
 	if (!slot)
 		return;
 
 	LANPlayer *player = slot->getUser();
 	if (!player)
 	{
-		DEBUG_ASSERTCRASH(TheLAN->GetMyGame()->getIP(i) == 0, ("No player info in listbox!"));
+		DEBUG_ASSERTCRASH(TheLAN->GetMyGame()->getIP(idx) == 0, ("No player info in listbox!"));
 		TheMouse->setCursorTooltip( UnicodeString::TheEmptyString );
 		return;
 	}
@@ -406,7 +406,7 @@ static void handleColorSelection(int index)
 	GameWindow *combo = comboBoxColor[index];
 	Int color, selIndex;
 	GadgetComboBoxGetSelectedPos(combo, &selIndex);
-	color = (Int)GadgetComboBoxGetItemData(combo, selIndex);
+	color = static_cast<Int>(reinterpret_cast<intptr_t>(GadgetComboBoxGetItemData(combo, selIndex)));
 
 	LANGameInfo *myGame = TheLAN->GetMyGame();
 
@@ -464,7 +464,7 @@ static void handlePlayerTemplateSelection(int index)
 	GameWindow *combo = comboBoxPlayerTemplate[index];
 	Int playerTemplate, selIndex;
 	GadgetComboBoxGetSelectedPos(combo, &selIndex);
-	playerTemplate = (Int)GadgetComboBoxGetItemData(combo, selIndex);
+	playerTemplate = static_cast<Int>(reinterpret_cast<intptr_t>(GadgetComboBoxGetItemData(combo, selIndex)));
 	LANGameInfo *myGame = TheLAN->GetMyGame();
 
 	if (myGame)
@@ -576,7 +576,7 @@ static void handleTeamSelection(int index)
 	GameWindow *combo = comboBoxTeam[index];
 	Int team, selIndex;
 	GadgetComboBoxGetSelectedPos(combo, &selIndex);
-	team = (Int)GadgetComboBoxGetItemData(combo, selIndex);
+	team = static_cast<Int>(reinterpret_cast<intptr_t>(GadgetComboBoxGetItemData(combo, selIndex)));
 	LANGameInfo *myGame = TheLAN->GetMyGame();
 
 	if (myGame)
@@ -621,7 +621,7 @@ static void handleStartingCashSelection()
     GadgetComboBoxGetSelectedPos(comboBoxStartingCash, &selIndex);
 
     Money startingCash;
-    startingCash.deposit( (UnsignedInt)GadgetComboBoxGetItemData( comboBoxStartingCash, selIndex ), FALSE );
+    startingCash.deposit( static_cast<UnsignedInt>(reinterpret_cast<uintptr_t>(GadgetComboBoxGetItemData( comboBoxStartingCash, selIndex ))), FALSE );
     myGame->setStartingCash( startingCash );
     myGame->resetAccepted();
 
@@ -977,9 +977,10 @@ void updateGameOptions( void )
 
     GadgetCheckBoxSetChecked( checkboxLimitSuperweapons, theGame->getSuperweaponRestriction() != 0 );
 		Int itemCount = GadgetComboBoxGetLength(comboBoxStartingCash);
-    for ( Int index = 0; index < itemCount; index++ )
+		Int index;
+    for ( index = 0; index < itemCount; index++ )
     {
-      Int value  = (Int)GadgetComboBoxGetItemData(comboBoxStartingCash, index);
+      Int value  = static_cast<Int>(reinterpret_cast<intptr_t>(GadgetComboBoxGetItemData(comboBoxStartingCash, index)));
       if ( value == theGame->getStartingCash().countMoney() )
       {
         GadgetComboBoxSetSelectedPos(comboBoxStartingCash, index, TRUE);

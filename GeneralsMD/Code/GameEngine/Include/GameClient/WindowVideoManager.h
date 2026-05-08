@@ -149,11 +149,11 @@ private:
 	// use special class for hashing, since std::hash won't compile for arbitrary ptrs
 	struct hashConstGameWindowPtr
 	{
-	size_t operator()(ConstGameWindowPtr p) const
-	{
-		std::hash<UnsignedInt> hasher;
-		return hasher((UnsignedInt)p);
-	}
+		size_t operator()(ConstGameWindowPtr p) const
+		{
+			std::hash<ConstGameWindowPtr> hasher;
+			return hasher(p);
+		}
 	};
 
 	typedef std::hash_map< ConstGameWindowPtr, WindowVideo *, hashConstGameWindowPtr, std::equal_to<ConstGameWindowPtr> > WindowVideoMap;

@@ -1,4 +1,3 @@
-#define POINTER_64 __ptr64
 /*
 **	Command & Conquer Generals Zero Hour(tm)
 **	Copyright 2025 Electronic Arts Inc.
@@ -212,7 +211,7 @@ WW3D::PrelitModeEnum									WW3D::PrelitMode = PRELIT_MODE_LIGHTMAP_MULTI_PASS;
 bool														WW3D::ExposePrelit = false;
 
 bool														WW3D::SnapshotActivated=false;
-bool														WW3D::ThumbnailEnabled=true;
+bool														WW3D::ThumbnailEnabled=false; // Disabled: global.th6 thumbnail file is not present in DX9 build; foreground loading used instead
 
 WW3D::MeshDrawModeEnum								WW3D::MeshDrawMode = MESH_DRAW_MODE_OLD;
 WW3D::NPatchesGapFillingModeEnum					WW3D::NPatchesGapFillingMode = NPATCHES_GAP_FILLING_ENABLED;
@@ -803,7 +802,7 @@ WW3DErrorType WW3D::Begin_Render(bool clear,bool clearz,const Vector3 & color, f
 	SNAPSHOT_SAY(("========== WW3D::Begin_Render ============\r\n"));
 	SNAPSHOT_SAY(("==========================================\r\n\r\n"));
 
-	if (DX8Wrapper::_Get_D3D_Device8() && (hr=DX8Wrapper::_Get_D3D_Device8()->TestCooperativeLevel()) != D3D_OK)
+	if (DX8Wrapper::_Get_D3D_Device9() && (hr=DX8Wrapper::_Get_D3D_Device9()->TestCooperativeLevel()) != D3D_OK)
 	{
         // If the device was lost, do not render until we get it back
         if( D3DERR_DEVICELOST == hr )
@@ -1357,7 +1356,7 @@ void WW3D::Make_Screen_Shot( const char * filename_base , const float gamma, con
 
 	D3DLOCKED_RECT lrect;
 
-	DX8_ErrorCode(fb->LockRect(&lrect,&bounds,D3DLOCK_READONLY));
+	DX9_ErrorCode(fb->LockRect(&lrect,&bounds,D3DLOCK_READONLY));
 
 	unsigned int x,y,index,index2,width,height;
 
@@ -1692,7 +1691,7 @@ void WW3D::Update_Movie_Capture( void )
 
 	D3DLOCKED_RECT lrect;
 
-	DX8_ErrorCode(fb->LockRect(&lrect,&bounds,D3DLOCK_READONLY));
+	DX9_ErrorCode(fb->LockRect(&lrect,&bounds,D3DLOCK_READONLY));
 
 	unsigned int x,y,index,index2,width,height;
 

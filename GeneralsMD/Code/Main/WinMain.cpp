@@ -42,31 +42,17 @@
 // USER INCLUDES //////////////////////////////////////////////////////////////
 #include "WinMain.h"
 #include "Lib/BaseType.h"
-#include "Common/CopyProtection.h"
 #include "Common/CriticalSection.h"
 #include "Common/GlobalData.h"
 #include "Common/GameEngine.h"
 #include "Common/GameSounds.h"
 #include "Common/Debug.h"
 #include "Common/GameMemory.h"
-// MODERNIZATION: SafeDisc DRM removed for open-source build
-#include "Common/SafeDisc/CdaPfn.h"
-#ifndef CDAPFN_OVERHEAD_L5
-#define CDAPFN_OVERHEAD_L5 0
-#endif
-#ifndef CDAPFN_CONSTRAINT_NONE
-#define CDAPFN_CONSTRAINT_NONE 0
-#endif
-#ifndef CDAPFN_DECLARE_GLOBAL
-#define CDAPFN_DECLARE_GLOBAL(name, overhead, constraint)
-#endif
-#ifndef CDAPFN_ENDMARK
-#define CDAPFN_ENDMARK(name) ((void)0)
-#endif
 #include "Common/StackDump.h"
 #include "Common/MessageStream.h"
 #include "Common/Registry.h"
 #include "Common/Team.h"
+#include "Common/UserPreferences.h"
 #include "GameClient/InGameUI.h"
 #include "GameClient/GameClient.h"
 #include "GameLogic/GameLogic.h"  ///< @todo for demo, remove
@@ -90,7 +76,11 @@
 // GLOBALS ////////////////////////////////////////////////////////////////////
 HINSTANCE ApplicationHInstance = NULL;  ///< our application instance
 HWND ApplicationHWnd = NULL;  ///< our application window handle
+#if defined(_WIN64)
 Bool ApplicationIsWindowed = false;
+#else
+Bool ApplicationIsWindowed = false;
+#endif
 Win32Mouse *TheWin32Mouse= NULL;  ///< for the WndProc() only
 DWORD TheMessageTime = 0;	///< For getting the time that a message was posted from Windows.
 
@@ -110,6 +100,39 @@ static Bool gDoPaint = true;
 static Bool isWinMainActive = false; 
 
 static HBITMAP gLoadScreenBitmap = NULL;
+
+static void enableHighDPIAwareness( void )
+{
+	HMODULE user32 = ::GetModuleHandleA( "user32.dll" );
+	if ( user32 != NULL )
+	{
+		typedef BOOL (WINAPI *SetProcessDpiAwarenessContextProc)( HANDLE );
+		SetProcessDpiAwarenessContextProc setContext =
+			(SetProcessDpiAwarenessContextProc)::GetProcAddress( user32, "SetProcessDpiAwarenessContext" );
+		if ( setContext != NULL )
+		{
+			if ( setContext( (HANDLE)-4 ) || setContext( (HANDLE)-3 ) )
+				return;
+		}
+
+		typedef BOOL (WINAPI *SetProcessDPIAwareProc)( void );
+		SetProcessDPIAwareProc setAware =
+			(SetProcessDPIAwareProc)::GetProcAddress( user32, "SetProcessDPIAware" );
+		if ( setAware != NULL && setAware() )
+			return;
+	}
+
+	HMODULE shcore = ::LoadLibraryA( "Shcore.dll" );
+	if ( shcore != NULL )
+	{
+		typedef HRESULT (WINAPI *SetProcessDpiAwarenessProc)( int );
+		SetProcessDpiAwarenessProc setAwareness =
+			(SetProcessDpiAwarenessProc)::GetProcAddress( shcore, "SetProcessDpiAwareness" );
+		if ( setAwareness != NULL )
+			setAwareness( 2 );	// PROCESS_PER_MONITOR_DPI_AWARE
+		::FreeLibrary( shcore );
+	}
+}
 
 //#define DEBUG_WINDOWS_MESSAGES
 
@@ -332,11 +355,6 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message,
 			}
 		}
 		
-#ifdef DO_COPY_PROTECTION
-		// Check for messages from the launcher
-		CopyProtect::checkForMessage(message, lParam);
-#endif
-
 #ifdef	DEBUG_WINDOWS_MESSAGES
 		static msgCount=0;
 		char testString[256];
@@ -440,9 +458,19 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message,
 
 			//-------------------------------------------------------------------------
 			case WM_SIZE:
-				// When W3D initializes, it resizes the window.  So stop repainting.
-				if (!gInitializing) 
+				// Clear the startup splash once W3D owns the window.
+				if (!gInitializing && gDoPaint)
+				{
 					gDoPaint = false;
+					RECT clearRect;
+					::GetClientRect(hWnd, &clearRect);
+					HDC clearDC = ::GetDC(hWnd);
+					if (clearDC != NULL)
+					{
+						::FillRect(clearDC, &clearRect, (HBRUSH)::GetStockObject(BLACK_BRUSH));
+						::ReleaseDC(hWnd, clearDC);
+					}
+				}
 				break;
 
 			//-------------------------------------------------------------------------
@@ -612,7 +640,15 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message,
 						Int savContext = ::SaveDC(dc);
 						HDC tmpDC = ::CreateCompatibleDC(dc);
 						HBITMAP savBitmap = (HBITMAP)::SelectObject(tmpDC, gLoadScreenBitmap);
-						::BitBlt(dc, 0, 0, DEFAULT_XRESOLUTION, DEFAULT_YRESOLUTION, tmpDC, 0, 0, SRCCOPY);
+						RECT clientRect;
+						::GetClientRect(hWnd, &clientRect);
+						Int clientWidth = clientRect.right - clientRect.left;
+						Int clientHeight = clientRect.bottom - clientRect.top;
+						Int splashX = (clientWidth - DEFAULT_XRESOLUTION) / 2;
+						Int splashY = (clientHeight - DEFAULT_YRESOLUTION) / 2;
+						if (splashX < 0) splashX = 0;
+						if (splashY < 0) splashY = 0;
+						::BitBlt(dc, splashX, splashY, DEFAULT_XRESOLUTION, DEFAULT_YRESOLUTION, tmpDC, 0, 0, SRCCOPY);
 						::SelectObject(tmpDC, savBitmap);
 						::DeleteDC(tmpDC);
 						::RestoreDC(dc, savContext);
@@ -707,88 +743,60 @@ static Bool initializeAppWindows( HINSTANCE hInstance, Int nCmdShow, Bool runWin
   RegisterClass( &wndClass );
 
    // Create our main window
-	windowStyle =  WS_POPUP|WS_VISIBLE;
-	if (runWindowed) 
+	windowStyle = WS_POPUP | WS_VISIBLE;
+	if ( runWindowed )
 		windowStyle |= WS_DLGFRAME | WS_CAPTION | WS_SYSMENU;
-	else
-		windowStyle |= WS_EX_TOPMOST | WS_SYSMENU;
 
 	RECT rect;
 	rect.left = 0;
 	rect.top = 0;
 	rect.right = startWidth;
 	rect.bottom = startHeight;
-	AdjustWindowRect (&rect, windowStyle, FALSE);
-	if (runWindowed) {
-		// Makes the normal debug 800x600 window center in the screen.
-		startWidth = DEFAULT_XRESOLUTION;
-		startHeight= DEFAULT_YRESOLUTION;
+	AdjustWindowRect(&rect, windowStyle, FALSE);
+
+	Int windowWidth = rect.right - rect.left;
+	Int windowHeight = rect.bottom - rect.top;
+	RECT placementArea = { 0, 0, ::GetSystemMetrics(SM_CXSCREEN), ::GetSystemMetrics(SM_CYSCREEN) };
+	if (runWindowed)
+	{
+		::SystemParametersInfo(SPI_GETWORKAREA, 0, &placementArea, 0);
 	}
+
+	Int placementWidth = placementArea.right - placementArea.left;
+	Int placementHeight = placementArea.bottom - placementArea.top;
+	Int windowX = placementArea.left + ((placementWidth - windowWidth) / 2);
+	Int windowY = placementArea.top + ((placementHeight - windowHeight) / 2);
+
+	if (windowX < placementArea.left)
+		windowX = placementArea.left;
+	if (windowY < placementArea.top)
+		windowY = placementArea.top;
 
 	gInitializing = true;
 
-  HWND hWnd = CreateWindow( TEXT("Game Window"),
-                            TEXT("Command and Conquer Generals"),
-                            windowStyle, 
-														(GetSystemMetrics( SM_CXSCREEN ) / 2) - (startWidth / 2), // original position X
-														(GetSystemMetrics( SM_CYSCREEN ) / 2) - (startHeight / 2),// original position Y
-														// Lorenzen nudged the window higher
-														// so the constantdebug report would 
-														// not get obliterated by assert windows, thank you.
-														//(GetSystemMetrics( SM_CXSCREEN ) / 2) - (startWidth / 2),   //this works with any screen res
-														//(GetSystemMetrics( SM_CYSCREEN ) / 25) - (startHeight / 25),//this works with any screen res
-														rect.right-rect.left,
-														rect.bottom-rect.top,
-														0L, 
-														0L, 
-														hInstance, 
-														0L );
+	HWND hWnd = CreateWindow(TEXT("Game Window"),
+		TEXT("Command and Conquer Generals"),
+		windowStyle,
+		windowX,
+		windowY,
+		windowWidth,
+		windowHeight,
+		0L, 0L, hInstance, 0L);
 
-
-	if (!runWindowed)
-	{	SetWindowPos(hWnd, HWND_TOPMOST, 0, 0, 0, 0,SWP_NOSIZE |SWP_NOMOVE);
-	}
-	else 
-		SetWindowPos(hWnd, HWND_TOP, 0, 0, 0, 0,SWP_NOSIZE |SWP_NOMOVE);
+	SetWindowPos(hWnd, HWND_TOP, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE);
 
 	SetFocus(hWnd);
-
 	SetForegroundWindow(hWnd);
-	ShowWindow( hWnd, nCmdShow );
-	UpdateWindow( hWnd );
+	ShowWindow(hWnd, nCmdShow);
+	UpdateWindow(hWnd);
 
-	// save our application instance and window handle for future use
 	ApplicationHInstance = hInstance;
 	ApplicationHWnd = hWnd;
 	gInitializing = false;
-	if (!runWindowed) {
-		gDoPaint = false;
-	}
 
 	return true;  // success
 
 }  // end initializeAppWindows
-
-void munkeeFunc(void);
-CDAPFN_DECLARE_GLOBAL(munkeeFunc, CDAPFN_OVERHEAD_L5, CDAPFN_CONSTRAINT_NONE);
-void munkeeFunc(void)
-{
-	CDAPFN_ENDMARK(munkeeFunc);
-}
-
-void checkProtection(void)
-{
-#ifdef _INTERNAL
-	__try
-	{
-		munkeeFunc();
-	}
-	__except(EXCEPTION_EXECUTE_HANDLER)
-	{
-		exit(0); // someone is messing with us.
-	}
-#endif
-}
 
 // strtrim ====================================================================
 /** Trim leading and trailing whitespace from a character string (in place). */
@@ -887,9 +895,7 @@ static CriticalSection critSec1, critSec2, critSec3, critSec4, critSec5;
 Int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance,
                       LPSTR lpCmdLine, Int nCmdShow )
 {
-	checkProtection();
-
-#ifdef _PROFILE
+#if defined(_PROFILE) && !defined(_WIN64)
   Profile::StartRange("init");
 #endif
 
@@ -931,7 +937,7 @@ Int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance,
 			pEnd--;
 		}
 		::SetCurrentDirectory(buffer);
-
+		enableHighDPIAwareness();
 
 		/*
 		** Convert WinMain arguments to simple main argc and argv
@@ -1008,8 +1014,14 @@ Int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
 
 		// register windows class and create application window
-		if( initializeAppWindows( hInstance, nCmdShow, ApplicationIsWindowed) == false )
+		if( initializeAppWindows( hInstance, nCmdShow, ApplicationIsWindowed ) == false )
+		{
+			MessageBoxA(NULL,
+				"Generals could not initialize its main window.\n\nMake sure you are launching it from the Run folder with the game data present.",
+				"Generals Startup Error",
+				MB_OK | MB_ICONERROR);
 			return 0;
+		}
 
 		if (gLoadScreenBitmap!=NULL) {
 			::DeleteObject(gLoadScreenBitmap);
@@ -1030,19 +1042,6 @@ Int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance,
 		TheVersion->setVersion(VERSION_MAJOR, VERSION_MINOR, VERSION_BUILDNUM, VERSION_LOCALBUILDNUM,
 			AsciiString(VERSION_BUILDUSER), AsciiString(VERSION_BUILDLOC),
 			AsciiString(__TIME__), AsciiString(__DATE__));
-
-#ifdef DO_COPY_PROTECTION
-		if (!CopyProtect::isLauncherRunning())
-		{
-			DEBUG_LOG(("Launcher is not running - about to bail\n"));
-			delete TheVersion;
-			TheVersion = NULL;
-			shutdownMemoryManager();
-			DEBUG_SHUTDOWN();
-			return 0;
-		}
-#endif
-
 
 		//Create a mutex with a unique name to Generals in order to determine if
 		//our app is already running.
@@ -1071,27 +1070,10 @@ Int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance,
 		}
 		DEBUG_LOG(("Create GeneralsMutex okay.\n"));
 
-#ifdef DO_COPY_PROTECTION
-		if (!CopyProtect::notifyLauncher())
-		{
-			DEBUG_LOG(("Could not talk to the launcher - about to bail\n"));
-			delete TheVersion;
-			TheVersion = NULL;
-			shutdownMemoryManager();
-			DEBUG_SHUTDOWN();
-			return 0;
-		}
-#endif
-
 		DEBUG_LOG(("CRC message is %d\n", GameMessage::MSG_LOGIC_CRC));
 
 		// run the game main loop
 		GameMain(argc, argv);
-
-#ifdef DO_COPY_PROTECTION
-		// Clean up copy protection
-		CopyProtect::shutdown();
-#endif
 
 		delete TheVersion;
 		TheVersion = NULL;
@@ -1111,8 +1093,11 @@ Int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	//	OleUninitialize();
 	}	
 	catch (...) 
-	{ 
-	
+	{
+		MessageBoxA(NULL,
+			"Generals hit an unexpected startup exception before the main loop began.\n\nCheck the debugger or log output for more detail.",
+			"Generals Startup Error",
+			MB_OK | MB_ICONERROR);
 	}
 
 	TheUnicodeStringCriticalSection = NULL;

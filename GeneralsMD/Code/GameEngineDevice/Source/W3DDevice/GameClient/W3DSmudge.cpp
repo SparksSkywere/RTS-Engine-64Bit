@@ -143,7 +143,7 @@ Int copyRect(unsigned char *buf, Int bufSize, int oX, int oY, int width, int hei
 	Int result = 0;
 	HRESULT hr = S_OK;
 
- 	LPDIRECT3DDEVICE8 m_pDev=DX8Wrapper::_Get_D3D_Device8();
+ 	LPDIRECT3DDEVICE8 m_pDev=DX8Wrapper::_Get_D3D_Device9();
 
 	if (!m_pDev)
 		goto error;
@@ -172,7 +172,7 @@ Int copyRect(unsigned char *buf, Int bufSize, int oX, int oY, int width, int hei
 	if (hr != S_OK)
 		goto error;
  
- 	hr=m_pDev->CopyRects(surface,&srcRect,1,tempSurface,&dstPoint);
+	hr=D3D9_CopyRects(m_pDev, surface, &srcRect, 1, tempSurface, &dstPoint);
 
 	if (hr != S_OK)
 		goto error;
@@ -186,8 +186,9 @@ Int copyRect(unsigned char *buf, Int bufSize, int oX, int oY, int width, int hei
 
  	tempSurface->GetDesc(&desc);
 
-	if (desc.Size < bufSize)
-		bufSize = desc.Size;
+	UINT surfaceSize = static_cast<UINT>(lrect.Pitch * desc.Height);
+	if (surfaceSize < bufSize)
+		bufSize = surfaceSize;
 		
 	memcpy(buf,lrect.pBits,bufSize);
 	result = bufSize;
@@ -255,11 +256,11 @@ Bool W3DSmudgeManager::testHardwareSupport(void)
 		v[2].color = UNIQUE_COLOR;
 		v[3].color = UNIQUE_COLOR;
 
-		LPDIRECT3DDEVICE8 pDev=DX8Wrapper::_Get_D3D_Device8();
+		IDirect3DDevice9* pDev=DX8Wrapper::_Get_D3D_Device9();
 
 		//draw polygons like this is very inefficient but for only 2 triangles, it's
 		//not worth bothering with index/vertex buffers.
-		pDev->SetVertexShader(D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1);
+		D3D9_SetVertexShader(pDev, D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1);
 
 		pDev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, v, sizeof(_TRANS_LIT_TEX_VERTEX));
 
@@ -540,12 +541,12 @@ flushSmudges:
 		DX8Wrapper::Draw_Triangles(	0,smudgesInRenderBatch*4, 0, smudgesInRenderBatch*5);	
 
 //Debug Code which draws outline around smudge
-/*		DX8Wrapper::_Get_D3D_Device8()->SetRenderState(D3DRS_FILLMODE,D3DFILL_WIREFRAME);
-		DX8Wrapper::_Get_D3D_Device8()->SetRenderState(D3DRS_ALPHABLENDENABLE,FALSE);
+/*		DX8Wrapper::_Get_D3D_Device9()->SetRenderState(D3DRS_FILLMODE,D3DFILL_WIREFRAME);
+		DX8Wrapper::_Get_D3D_Device9()->SetRenderState(D3DRS_ALPHABLENDENABLE,FALSE);
 		DX8Wrapper::Set_DX8_Texture_Stage_State(0,D3DTSS_COLOROP,D3DTOP_SELECTARG2);			
 		DX8Wrapper::Draw_Triangles(	0,smudgesInRenderBatch*4, 0, smudgesInRenderBatch*5);	
-		DX8Wrapper::_Get_D3D_Device8()->SetRenderState(D3DRS_FILLMODE,D3DFILL_SOLID);
-		DX8Wrapper::_Get_D3D_Device8()->SetRenderState(D3DRS_ALPHABLENDENABLE,TRUE);
+		DX8Wrapper::_Get_D3D_Device9()->SetRenderState(D3DRS_FILLMODE,D3DFILL_SOLID);
+		DX8Wrapper::_Get_D3D_Device9()->SetRenderState(D3DRS_ALPHABLENDENABLE,TRUE);
 		DX8Wrapper::Set_DX8_Texture_Stage_State(0,D3DTSS_COLOROP,D3DTOP_SELECTARG1);			
 */
 		smudgesRemaining -= smudgesInRenderBatch;

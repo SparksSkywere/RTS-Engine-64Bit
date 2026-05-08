@@ -111,7 +111,7 @@ ThingFactory::ThingFactory()
 	m_firstTemplate = NULL;
 	m_nextTemplateID = 1;	// not zero!
 
-	m_templateHashMap.resize( TEMPLATE_HASH_SIZE );
+	m_templateHashMap.reserve( TEMPLATE_HASH_SIZE );
 }  // end ThingFactory
 
 //-------------------------------------------------------------------------------------------------
@@ -264,6 +264,84 @@ const ThingTemplate *ThingFactory::findByTemplateID( UnsignedShort id )
 }
 
 //-------------------------------------------------------------------------------------------------
+static const char *findLegacyTemplateAlias( const AsciiString& rawName )
+{
+	AsciiString name = rawName;
+	name.trim();
+	const char *s = name.str();
+
+	// Never alias a name that is already a valid internal token; this prevents alias recursion during load.
+	if( !name.compareNoCase( "TechBuilding" )
+		|| !name.compareNoCase( "TechOilDerrick" )
+		|| !name.compareNoCase( "TechOilRefinery" )
+		|| !name.compareNoCase( "TechHospital" )
+		|| !name.compareNoCase( "TechReinforcementPad" ) )
+	{
+		return NULL;
+	}
+
+	if( !name.compareNoCase( "Tech Center" ) || !name.compareNoCase( "Tech Building" ) )
+	{
+		return "TechBuilding";
+	}
+	if( !name.compareNoCase( "Tech Oil Derrick" ) )
+	{
+		return "TechOilDerrick";
+	}
+	if( !name.compareNoCase( "Tech Oil Refinery" ) )
+	{
+		return "TechOilRefinery";
+	}
+	if( !name.compareNoCase( "Tech Hospital" ) )
+	{
+		return "TechHospital";
+	}
+	if( !name.compareNoCase( "Tech Repair Bay" ) || !name.compareNoCase( "Repair Bay" ) )
+	{
+		return "TechRepairbay";
+	}
+	if( !name.compareNoCase( "Tech Reinforcement Pad" ) )
+	{
+		return "TechReinforcementPad";
+	}
+
+	// Be tolerant of legacy display-style names with prefixes/quotes/extra whitespace.
+	if( s != NULL )
+	{
+		if( (strstr( s, "Tech" ) != NULL || strstr( s, "tech" ) != NULL)
+			&& (strstr( s, "Center" ) != NULL || strstr( s, "center" ) != NULL || strstr( s, "Building" ) != NULL || strstr( s, "building" ) != NULL) )
+		{
+			return "TechBuilding";
+		}
+		if( (strstr( s, "Oil" ) != NULL || strstr( s, "oil" ) != NULL)
+			&& (strstr( s, "Derrick" ) != NULL || strstr( s, "derrick" ) != NULL) )
+		{
+			return "TechOilDerrick";
+		}
+		if( (strstr( s, "Oil" ) != NULL || strstr( s, "oil" ) != NULL)
+			&& (strstr( s, "Refinery" ) != NULL || strstr( s, "refinery" ) != NULL) )
+		{
+			return "TechOilRefinery";
+		}
+		if( strstr( s, "Hospital" ) != NULL || strstr( s, "hospital" ) != NULL )
+		{
+			return "TechHospital";
+		}
+		if( (strstr( s, "Repair" ) != NULL || strstr( s, "repair" ) != NULL)
+			&& (strstr( s, "Bay" ) != NULL || strstr( s, "bay" ) != NULL) )
+		{
+			return "TechRepairbay";
+		}
+		if( (strstr( s, "Reinforcement" ) != NULL || strstr( s, "reinforcement" ) != NULL)
+			&& (strstr( s, "Pad" ) != NULL || strstr( s, "pad" ) != NULL) )
+		{
+			return "TechReinforcementPad";
+		}
+	}
+	return NULL;
+}
+
+//-------------------------------------------------------------------------------------------------
 /** Return the template with the matching database name */
 //-------------------------------------------------------------------------------------------------
 ThingTemplate *ThingFactory::findTemplateInternal( const AsciiString& name, Bool check )
@@ -272,6 +350,41 @@ ThingTemplate *ThingFactory::findTemplateInternal( const AsciiString& name, Bool
 
 	if (tIt != m_templateHashMap.end()) {
 		return tIt->second;
+	}
+
+	for (ThingTemplate *tmpl = m_firstTemplate; tmpl; tmpl = tmpl->friend_getNextTemplate())
+	{
+		if (tmpl->getName() == name)
+		{
+			m_templateHashMap[tmpl->getName()] = tmpl;
+			return tmpl;
+		}
+	}
+
+	// Only attempt legacy display-name aliasing for checked/runtime lookups.
+	// During early database load there are many transient unresolved names; trying to
+	// alias all of those can stall startup before the main menu appears.
+	const char *legacyAlias = check ? findLegacyTemplateAlias( name ) : NULL;
+	if( legacyAlias != NULL && name.compareNoCase( legacyAlias ) != 0 )
+	{
+		AsciiString aliasName( legacyAlias );
+		ThingTemplateHashMapIt aliasIt = m_templateHashMap.find(aliasName);
+		if( aliasIt != m_templateHashMap.end() )
+		{
+			m_templateHashMap[name] = aliasIt->second;
+			return aliasIt->second;
+		}
+
+		for (ThingTemplate *tmpl = m_firstTemplate; tmpl; tmpl = tmpl->friend_getNextTemplate())
+		{
+			if (tmpl->getName() == aliasName)
+			{
+				DEBUG_LOG(("ThingFactory::findTemplateInternal - remapping legacy thing template '%s' to '%s'\n", name.str(), legacyAlias));
+				m_templateHashMap[name] = tmpl;
+				m_templateHashMap[tmpl->getName()] = tmpl;
+				return tmpl;
+			}
+		}
 	}
 
 #ifdef LOAD_TEST_ASSETS
@@ -293,6 +406,11 @@ ThingTemplate *ThingFactory::findTemplateInternal( const AsciiString& name, Bool
 	
 #endif
 	
+	if( check && legacyAlias != NULL && name.isNotEmpty() )
+	{
+		DEBUG_LOG(("ThingFactory::findTemplateInternal - unresolved legacy display-style thing template '%s'; returning NULL instead of asserting\n", name.str()));
+		return NULL;
+	}
 	if( check && name.isNotEmpty() )
 	{
 		DEBUG_CRASH( ("Failed to find thing template %s (case sensitive) This issue has a chance of crashing after you ignore it!", name.str() ) );

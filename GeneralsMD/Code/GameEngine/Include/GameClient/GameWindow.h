@@ -75,7 +75,10 @@ enum { WIN_COLOR_UNDEFINED = GAME_COLOR_UNDEFINED };
 
 // WindowMsgData --------------------------------------------------------------
 //-----------------------------------------------------------------------------
-typedef UnsignedInt WindowMsgData;
+// Changed from UnsignedInt (32-bit) to UINT_PTR (pointer-size) for x64 safety.
+// GadgetXxx callbacks pass GameWindow* pointers as message data; truncation was
+// losing the upper 32 bits on x64 causing potential crashes.
+typedef UINT_PTR WindowMsgData;
 
 //-----------------------------------------------------------------------------
 enum WindowMsgHandledType { MSG_IGNORED, MSG_HANDLED };
@@ -330,6 +333,7 @@ public:
 	GameWindow *winGetParent( void );  ///< get parent
 	Bool winIsChild( GameWindow *child );  ///< verifies parent
 	GameWindow *winGetChild( void );  ///< get the child window
+	void winSetChild( GameWindow *child );  ///< set the child window (use with care)
 	Int winSetOwner( GameWindow *owner );  ///< set owner
 	GameWindow *winGetOwner( void );  ///< get window's owner
 	void winSetNext( GameWindow *next );  ///< set next pointer

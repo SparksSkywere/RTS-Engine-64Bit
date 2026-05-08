@@ -148,8 +148,9 @@ void HTreeManagerClass::Free_All_Trees_With_Exclusion_List(const W3DExclusionLis
 	// For this system, since it is so simplistic, we simply loop over the array either deleting the tree
 	// or copying it to the new tail index if it is excluded.
 	int new_tail = 0;
+	int treeidx;
 
-	for (int treeidx=0; treeidx < MAX_TREES; treeidx++) {
+	for (treeidx=0; treeidx < MAX_TREES; treeidx++) {
 		if (TreePtr[treeidx] != NULL) {
 			
 			if (exclusion_list.Is_Excluded(TreePtr[treeidx])) {

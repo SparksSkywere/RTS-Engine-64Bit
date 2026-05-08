@@ -85,7 +85,7 @@ static UnsignedByte * saveSurface(IDirect3DSurface8 *surface)
 
 	surface->GetDesc(&desc);
 
-	LPDIRECT3DDEVICE8 m_pDev=DX8Wrapper::_Get_D3D_Device8();
+	LPDIRECT3DDEVICE8 m_pDev=DX8Wrapper::_Get_D3D_Device9();
 
 	HRESULT hr=m_pDev->CreateImageSurface(  desc.Width,desc.Height,desc.Format, &tempSurface);
 
@@ -93,7 +93,7 @@ static UnsignedByte * saveSurface(IDirect3DSurface8 *surface)
  
 	D3DLOCKED_RECT lrect;
 
-	DX8_ErrorCode(tempSurface->LockRect(&lrect,NULL,D3DLOCK_READONLY));
+	DX9_ErrorCode(tempSurface->LockRect(&lrect,NULL,D3DLOCK_READONLY));
 
 	unsigned int x,y,index,index2,width,height;
 

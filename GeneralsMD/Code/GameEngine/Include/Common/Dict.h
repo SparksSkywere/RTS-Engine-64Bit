@@ -303,11 +303,11 @@ private:
 		void setNameAndType(NameKeyType key, DataType type);
 		inline DataType getType() const { return getTypeFromKey(m_key); }
 		inline NameKeyType getName() const { return getNameFromKey(m_key); }
-		inline Bool* asBool() { return (Bool*)&m_value; }
-		inline Int* asInt() { return (Int*)&m_value; }
-		inline Real* asReal() { return (Real*)&m_value; }
-		inline AsciiString* asAsciiString() { return (AsciiString*)&m_value; }
-		inline UnicodeString* asUnicodeString() { return (UnicodeString*)&m_value; }
+		inline Bool* asBool() { return reinterpret_cast<Bool*>(&m_value); }
+		inline Int* asInt() { return reinterpret_cast<Int*>(&m_value); }
+		inline Real* asReal() { return reinterpret_cast<Real*>(&m_value); }
+		inline AsciiString* asAsciiString() { return reinterpret_cast<AsciiString*>(&m_value); }
+		inline UnicodeString* asUnicodeString() { return reinterpret_cast<UnicodeString*>(&m_value); }
 	};
 
 	struct DictPairData

@@ -388,6 +388,7 @@ void GameTextManager::init( void )
 
 void GameTextManager::deinit( void )
 {
+	reset();
 
 	if( m_stringInfo != NULL )
 	{
@@ -437,6 +438,8 @@ void GameTextManager::reset( void )
 		delete [] m_mapStringLUT;
 		m_mapStringLUT = NULL;
 	}
+
+	m_mapTextCount = 0;
 }
 
 

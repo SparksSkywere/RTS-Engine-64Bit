@@ -23,7 +23,7 @@
 struct BorderColor
 {
 	char *m_colorName;
-	long m_borderColor;
+	unsigned int m_borderColor;
 };
 
 const BorderColor BORDER_COLORS[] = 
@@ -38,4 +38,4 @@ const BorderColor BORDER_COLORS[] =
 	{ "Pink",						0xFFFF8670, },
 };
 
-const long BORDER_COLORS_SIZE = sizeof(BORDER_COLORS) / sizeof (BORDER_COLORS[0]);
+const int BORDER_COLORS_SIZE = static_cast<int>(sizeof(BORDER_COLORS) / sizeof(BORDER_COLORS[0]));

@@ -29,11 +29,11 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Profile|x64'"><TargetName>WWMathProfile</TargetName></PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)..;$(ProjectDir)..\WWLib;$(ProjectDir)..\WWMath;$(ProjectDir)..\WWDebug;$(ProjectDir)..\WWSaveLoad;$(ProjectDir)..\WW3D2;$(ProjectDir)..\..\..\Include;$(ProjectDir)..\..\..\..\..\GameEngine\Include;$(ProjectDir)..\..\..\..\..\GameEngineDevice\Include;$(ProjectDir)..\..\..\..\Include\Granny;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)..;$(ProjectDir)..\WWLib;$(ProjectDir)..\WWMath;$(ProjectDir)..\WWDebug;$(ProjectDir)..\WWSaveLoad;$(ProjectDir)..\WW3D2;$(ProjectDir)..\..\..\Include;$(ProjectDir)..\..\..\..\..\GameEngine\Include;$(ProjectDir)..\..\..\..\..\GameEngineDevice\Include;$(ProjectDir)..\..\..\..\Include\Granny;$(ProjectDir)..\..\..\..\Libraries\DirectX\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <WarningLevel>Level3</WarningLevel>
       <TreatWarningAsError>false</TreatWarningAsError>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
-      <LanguageStandard>stdcpp14</LanguageStandard><PreprocessorDefinitions>WIN32;_WINDOWS;_SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <LanguageStandard>stdcpp14</LanguageStandard><PreprocessorDefinitions>WIN64;_WIN64;_WINDOWS;_SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;_WINSOCK_DEPRECATED_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalOptions>/FS %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
   </ItemDefinitionGroup>
@@ -41,10 +41,9 @@
     <ClCompile><RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary><Optimization>MaxSpeed</Optimization></ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="**\*.cpp" Exclude="matrix3d.cpp" />
+    <ClCompile Include="**\*.cpp" />
     <ClCompile Include="**\*.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />
 </Project>
-

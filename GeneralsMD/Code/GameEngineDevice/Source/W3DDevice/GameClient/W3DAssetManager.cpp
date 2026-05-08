@@ -438,9 +438,10 @@ static void remapTexture16Bit(Int dx, Int dy, Int pitch, SurfaceClass::SurfaceDe
 {
 	UnsignedShort pal[TEAM_COLOR_PALETTE_SIZE];
 	Vector3 rgb,v_color((float)((color>>16)&0xff)/255.0f/255.0f,(float)((color>>8)&0xff)/255.0f/255.0f,(float)(color&0xff)/255.0f/255.0f);
+	Int y;
 
 	//Generate a new color gradient palette based on reference color
-	for (Int y=0; y<TEAM_COLOR_PALETTE_SIZE; y++)
+	for (y=0; y<TEAM_COLOR_PALETTE_SIZE; y++)
 	{	
 		rgb.X=(Real)houseColorScale[y]*v_color.X;
 		rgb.Y=(Real)houseColorScale[y]*v_color.Y;
@@ -541,9 +542,10 @@ static void remapTexture32Bit(Int dx, Int dy, Int pitch, SurfaceClass::SurfaceDe
 {
 	UnsignedInt pal[TEAM_COLOR_PALETTE_SIZE];
 	Vector3 rgb,v_color((float)((color>>16)&0xff)/255.0f/255.0f,(float)((color>>8)&0xff)/255.0f/255.0f,(float)(color&0xff)/255.0f/255.0f);
+	Int y;
 
 	//Generate a new color gradient palette based on reference color
-	for (Int y=0; y<TEAM_COLOR_PALETTE_SIZE; y++)
+	for (y=0; y<TEAM_COLOR_PALETTE_SIZE; y++)
 	{	
 		rgb.X=(Real)houseColorScale[y]*v_color.X;
 		rgb.Y=(Real)houseColorScale[y]*v_color.Y;
@@ -796,10 +798,10 @@ RenderObjClass * W3DAssetManager::Create_Render_Obj(
 	{	
 		// If we didn't find one, try to load on demand
 		char filename [MAX_PATH];
-		char *mesh_name = ::strchr (name, '.');
+		const char *mesh_name = ::strchr (name, '.');
 		if (mesh_name != NULL) 
 		{
-			::lstrcpyn(filename, name, ((int)mesh_name) - ((int)name) + 1);
+			::lstrcpyn(filename, name, int(mesh_name - name) + 1);
 #ifdef	INCLUDE_GRANNY_IN_BUILD
 			if (isGranny)
 				::lstrcat(filename, ".gr2");
@@ -817,8 +819,11 @@ RenderObjClass * W3DAssetManager::Create_Render_Obj(
 			if (Load_3D_Assets( new_filename ) == false)
 			{
 #ifdef	INCLUDE_GRANNY_IN_BUILD
-				char *mesh_name = ::strchr (filename, '.');
-				::lstrcpyn (mesh_name, ".gr2",5);
+				char *mesh_ext = ::strchr (filename, '.');
+				if (mesh_ext != NULL)
+				{
+					::lstrcpyn (mesh_ext, ".gr2", 5);
+				}
 				Load_3D_Assets( filename );
 				isGranny=true;
 #endif
@@ -1490,9 +1495,9 @@ RenderObjClass * W3DAssetManager::Create_Render_Obj(const char * name,float scal
 	Set_WW3D_Load_On_Demand(true); // Auto Load.
 	if (WW3D_Load_On_Demand && proto == NULL) {	// If we didn't find one, try to load on demand
 		char filename [MAX_PATH];
-		char *mesh_name = ::strchr (name, '.');
+		const char *mesh_name = ::strchr (name, '.');
 		if (mesh_name != NULL) {
-			::lstrcpyn (filename, name, ((int)mesh_name) - ((int)name) + 1);
+			::lstrcpyn (filename, name, int(mesh_name - name) + 1);
 			if (isGranny)
 				::lstrcat (filename, ".gr2");
 			else
@@ -1506,8 +1511,11 @@ RenderObjClass * W3DAssetManager::Create_Render_Obj(const char * name,float scal
 			StringClass	new_filename = StringClass("..\\") + filename;
 			if (Load_3D_Assets( new_filename ) == false)
 			{
-				char *mesh_name = ::strchr (filename, '.');
-				::lstrcpyn (mesh_name, ".gr2",5);
+				char *mesh_ext = ::strchr (filename, '.');
+				if (mesh_ext != NULL)
+				{
+					::lstrcpyn (mesh_ext, ".gr2", 5);
+				}
 				Load_3D_Assets( filename );
 				isGranny=true;
 			}

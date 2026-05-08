@@ -125,6 +125,11 @@ public:
 
 	Int	 getCampaignDifficulty(void);
 	void setCampaignDifficulty( Int diff );
+	Int  getDisplayMode(void);
+	Bool getVSync(void);
+	void setVSync(Bool vsync);
+	Bool getFPSCounter(void);
+	void setFPSCounter(Bool show);
 };
 
 //-----------------------------------------------------------------------------

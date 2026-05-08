@@ -29,22 +29,31 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Profile|x64'"><TargetName>WW3D2Profile</TargetName></PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)..;$(ProjectDir)..\WWLib;$(ProjectDir)..\WWMath;$(ProjectDir)..\WWDebug;$(ProjectDir)..\WWSaveLoad;$(ProjectDir)..\WW3D2;$(ProjectDir)..\..\..\Include;$(ProjectDir)..\..\..\..\..\GameEngine\Include;$(ProjectDir)..\..\..\..\..\GameEngineDevice\Include;$(ProjectDir)..\..\..\..\Include\Granny;$(ProjectDir)..\..\..\..\..\..\Dependencies\DirectX9\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)..;$(ProjectDir)..\WWLib;$(ProjectDir)..\WWMath;$(ProjectDir)..\WWDebug;$(ProjectDir)..\WWSaveLoad;$(ProjectDir)..\WW3D2;$(ProjectDir)..\WWAudio;$(ProjectDir)..\wwshade;$(ProjectDir)..\..\..\Include;$(ProjectDir)..\..\..\..\GameEngine\Include;$(ProjectDir)..\..\..\..\GameEngineDevice\Include;$(ProjectDir)..\..\..\..\Include\Granny;$(ProjectDir)..\..\..\..\Libraries\DirectX\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <WarningLevel>Level3</WarningLevel>
       <TreatWarningAsError>false</TreatWarningAsError>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
-      <LanguageStandard>stdcpp14</LanguageStandard><PreprocessorDefinitions>WIN32;_WINDOWS;_SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS;POINTER_64=__ptr64;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalOptions>/FS %(AdditionalOptions)</AdditionalOptions>
+      <LanguageStandard>stdcpp14</LanguageStandard><PreprocessorDefinitions>WIN64;_WIN64;_WINDOWS;WW3D_USE_D3D9_ALIASES;_SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;_WINSOCK_DEPRECATED_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalOptions>/FS /wd4267 /wd4018 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Internal|x64' Or '$(Configuration)|$(Platform)'=='Profile|x64' Or '$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile><RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary><Optimization>MaxSpeed</Optimization></ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="**\*.cpp" Exclude="animatedsoundmgr.cpp;soundrobj.cpp" />
+    <ClCompile Include="**\*.cpp" Exclude="soundrobj.cpp;sr_util.cpp" />
+    <ClCompile Include="..\wwshade\shddef.cpp" />
+    <ClCompile Include="..\wwshade\shddeffactory.cpp" />
+    <ClCompile Include="..\wwshade\shddefmanager.cpp" />
+    <ClCompile Include="..\wwshade\shdforcelinks.cpp" />
+    <ClCompile Include="..\wwshade\shdinterface.cpp" />
+    <ClCompile Include="..\wwshade\shdlegacyw3d.cpp" />
+    <ClCompile Include="..\wwshade\shdloader.cpp" />
+    <ClCompile Include="..\wwshade\shdmesh.cpp" />
+    <ClCompile Include="..\wwshade\shdrenderer.cpp" />
+    <ClCompile Include="..\wwshade\shdsubmesh.cpp" />
     <ClCompile Include="**\*.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />
 </Project>
-

@@ -39,7 +39,7 @@
 
 
 #ifndef MAC
-#include <mem.h>
+#include <memory.h>
 #endif
 /*********************
 ** NUMERIC HEAPSORT **
@@ -3011,7 +3011,6 @@ void DoNNET(void)
 {
 NNetStruct *locnnetstruct;      /* Local ptr to global data */
 char *errorcontext;
-int systemerror;
 ulong accumtime;
 double iterations;
 
@@ -3645,7 +3644,7 @@ if (vals_read != 3)
 vals_read=fscanf(infile,"%d",&numpats);
 if (vals_read !=1)
 {
-        printf("\n CPU:NNET -- Should read 1 item in line 2; did read &d",vals_read);
+        printf("\n CPU:NNET -- Should read 1 item in line 2; did read %d",vals_read);
         return -1;
 }
 if (numpats > MAXPATS)

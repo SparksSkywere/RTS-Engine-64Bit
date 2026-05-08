@@ -31,10 +31,14 @@
 
 #include "PreRTS.h"	// This must go first in EVERY cpp file int the GameEngine
 
+#include <map>
+#include <vector>
+
 #include "Common/Registry.h"
 #include "Common/StackDump.h"
 #include "Common/UserPreferences.h"
 #include "Common/Version.h"
+#include "Common/GlobalData.h"
 #include "GameNetwork/IPEnumeration.h"
 #include "GameNetwork/GameSpy/BuddyThread.h"
 #include "GameNetwork/GameSpy/PeerDefs.h"
@@ -133,6 +137,400 @@ enum
 #define COLOR__STR		"color"
 #define WINS__STR			"wins"
 #define LOSSES__STR		"losses"
+
+namespace
+{
+	const Int MODERN_GROUP_ROOM_ID = 1;
+	const char *MODERN_GROUP_ROOM_NAME = "Community";
+	const char *MODERN_BROWSER_URL_KEY = "ModernServerBrowserURL";
+
+	struct ModernBrowserPlayer
+	{
+		ModernBrowserPlayer() : wins(0), losses(0), profileID(0), faction(0), color(0) {}
+
+		std::string name;
+		Int wins;
+		Int losses;
+		Int profileID;
+		Int faction;
+		Int color;
+	};
+
+	struct ModernBrowserRoom
+	{
+		ModernBrowserRoom()
+			: id(0), requiresPassword(FALSE), allowObservers(TRUE), useStats(TRUE), version(0), exeCRC(0), iniCRC(0), ladderPort(0), numPlayers(0), maxPlayers(MAX_SLOTS), numObservers(0)
+		{
+		}
+
+		Int id;
+		std::wstring name;
+		std::string mapName;
+		Bool requiresPassword;
+		Bool allowObservers;
+		Bool useStats;
+		UnsignedInt version;
+		UnsignedInt exeCRC;
+		UnsignedInt iniCRC;
+		std::string ladderIP;
+		UnsignedShort ladderPort;
+		std::string pingString;
+		Int numPlayers;
+		Int maxPlayers;
+		Int numObservers;
+		ModernBrowserPlayer players[MAX_SLOTS];
+	};
+
+	Bool GetModernBrowserURL(AsciiString& url)
+	{
+		return GetStringFromRegistry("", MODERN_BROWSER_URL_KEY, url) && url.isNotEmpty();
+	}
+
+	void TrimString(std::string& value)
+	{
+		while (!value.empty() && value[0] <= ' ')
+		{
+			value.erase(value.begin());
+		}
+
+		while (!value.empty() && value[value.length() - 1] <= ' ')
+		{
+			value.erase(value.length() - 1);
+		}
+	}
+
+	Int HexDigitValue(char c)
+	{
+		if (c >= '0' && c <= '9')
+		{
+			return c - '0';
+		}
+		if (c >= 'a' && c <= 'f')
+		{
+			return 10 + (c - 'a');
+		}
+		if (c >= 'A' && c <= 'F')
+		{
+			return 10 + (c - 'A');
+		}
+		return -1;
+	}
+
+	std::string URLDecode(const std::string& value)
+	{
+		std::string decoded;
+		decoded.reserve(value.length());
+		for (size_t i = 0; i < value.length(); ++i)
+		{
+			char c = value[i];
+			if (c == '+' )
+			{
+				decoded.push_back(' ');
+			}
+			else if (c == '%' && i + 2 < value.length())
+			{
+				Int hi = HexDigitValue(value[i + 1]);
+				Int lo = HexDigitValue(value[i + 2]);
+				if (hi >= 0 && lo >= 0)
+				{
+					decoded.push_back((char)((hi << 4) | lo));
+					i += 2;
+				}
+				else
+				{
+					decoded.push_back(c);
+				}
+			}
+			else
+			{
+				decoded.push_back(c);
+			}
+		}
+		return decoded;
+	}
+
+	Bool ParseBoolValue(const std::string& value, Bool defaultValue)
+	{
+		if (_stricmp(value.c_str(), "1") == 0 || _stricmp(value.c_str(), "true") == 0 || _stricmp(value.c_str(), "yes") == 0)
+		{
+			return TRUE;
+		}
+		if (_stricmp(value.c_str(), "0") == 0 || _stricmp(value.c_str(), "false") == 0 || _stricmp(value.c_str(), "no") == 0)
+		{
+			return FALSE;
+		}
+		return defaultValue;
+	}
+
+	void SplitString(const std::string& value, char delimiter, std::vector<std::string>& parts)
+	{
+		parts.clear();
+		std::string current;
+		for (size_t i = 0; i < value.length(); ++i)
+		{
+			if (value[i] == delimiter)
+			{
+				parts.push_back(current);
+				current.erase();
+			}
+			else
+			{
+				current.push_back(value[i]);
+			}
+		}
+		parts.push_back(current);
+	}
+
+	Bool DownloadBrowserResponse(const std::string& url, std::string& response)
+	{
+		response.erase();
+
+		HINTERNET internet = InternetOpenA("CnCZeroHourModernBrowser/1.0", INTERNET_OPEN_TYPE_PRECONFIG, NULL, NULL, 0);
+		if (internet == NULL)
+		{
+			return FALSE;
+		}
+
+		DWORD timeoutMs = 5000;
+		InternetSetOptionA(internet, INTERNET_OPTION_CONNECT_TIMEOUT, &timeoutMs, sizeof(timeoutMs));
+		InternetSetOptionA(internet, INTERNET_OPTION_RECEIVE_TIMEOUT, &timeoutMs, sizeof(timeoutMs));
+		InternetSetOptionA(internet, INTERNET_OPTION_SEND_TIMEOUT, &timeoutMs, sizeof(timeoutMs));
+
+		DWORD flags = INTERNET_FLAG_RELOAD | INTERNET_FLAG_NO_CACHE_WRITE | INTERNET_FLAG_PRAGMA_NOCACHE;
+		if (_strnicmp(url.c_str(), "https://", 8) == 0)
+		{
+			flags |= INTERNET_FLAG_SECURE;
+		}
+
+		HINTERNET request = InternetOpenUrlA(internet, url.c_str(), NULL, 0, flags, 0);
+		if (request == NULL)
+		{
+			InternetCloseHandle(internet);
+			return FALSE;
+		}
+
+		char buffer[4096];
+		DWORD bytesRead = 0;
+		while (InternetReadFile(request, buffer, sizeof(buffer), &bytesRead) && bytesRead > 0)
+		{
+			response.append(buffer, bytesRead);
+			bytesRead = 0;
+		}
+
+		InternetCloseHandle(request);
+		InternetCloseHandle(internet);
+
+		return !response.empty();
+	}
+
+	std::string BuildBrowserURL(const AsciiString& baseUrl, Bool restrictGameList, Int profileID)
+	{
+		std::string url = baseUrl.str();
+		url.append((url.find('?') == std::string::npos) ? "?" : "&");
+		char suffix[128];
+		_snprintf(suffix, sizeof(suffix), "version=%u&profile=%d&restricted=%d", GetRegistryVersion(), profileID, restrictGameList ? 1 : 0);
+		url.append(suffix);
+		return url;
+	}
+
+	void PopulatePlayerFromValue(const std::string& value, ModernBrowserPlayer& player)
+	{
+		std::vector<std::string> parts;
+		SplitString(value, ',', parts);
+		if (!parts.empty())
+		{
+			player.name = URLDecode(parts[0]);
+		}
+		if (parts.size() > 1)
+		{
+			player.wins = atoi(parts[1].c_str());
+		}
+		if (parts.size() > 2)
+		{
+			player.losses = atoi(parts[2].c_str());
+		}
+		if (parts.size() > 3)
+		{
+			player.profileID = atoi(parts[3].c_str());
+		}
+		if (parts.size() > 4)
+		{
+			player.faction = atoi(parts[4].c_str());
+		}
+		if (parts.size() > 5)
+		{
+			player.color = atoi(parts[5].c_str());
+		}
+	}
+
+	Bool ParseModernBrowserRoom(const std::string& line, Int fallbackId, ModernBrowserRoom& room)
+	{
+		std::vector<std::string> tokens;
+		SplitString(line, ';', tokens);
+		for (size_t i = 0; i < tokens.size(); ++i)
+		{
+			std::string token = tokens[i];
+			TrimString(token);
+			if (token.empty())
+			{
+				continue;
+			}
+
+			size_t separator = token.find('=');
+			if (separator == std::string::npos)
+			{
+				continue;
+			}
+
+			std::string key = token.substr(0, separator);
+			std::string value = URLDecode(token.substr(separator + 1));
+			TrimString(key);
+			TrimString(value);
+
+			if (_stricmp(key.c_str(), "id") == 0)
+			{
+				room.id = atoi(value.c_str());
+			}
+			else if (_stricmp(key.c_str(), "name") == 0 || _stricmp(key.c_str(), "gamename") == 0)
+			{
+				room.name = MultiByteToWideCharSingleLine(value.c_str());
+			}
+			else if (_stricmp(key.c_str(), "map") == 0)
+			{
+				room.mapName = value;
+			}
+			else if (_stricmp(key.c_str(), "password") == 0)
+			{
+				room.requiresPassword = ParseBoolValue(value, room.requiresPassword);
+			}
+			else if (_stricmp(key.c_str(), "allowObservers") == 0)
+			{
+				room.allowObservers = ParseBoolValue(value, room.allowObservers);
+			}
+			else if (_stricmp(key.c_str(), "useStats") == 0)
+			{
+				room.useStats = ParseBoolValue(value, room.useStats);
+			}
+			else if (_stricmp(key.c_str(), "version") == 0)
+			{
+				room.version = strtoul(value.c_str(), NULL, 10);
+			}
+			else if (_stricmp(key.c_str(), "exeCRC") == 0)
+			{
+				room.exeCRC = strtoul(value.c_str(), NULL, 10);
+			}
+			else if (_stricmp(key.c_str(), "iniCRC") == 0)
+			{
+				room.iniCRC = strtoul(value.c_str(), NULL, 10);
+			}
+			else if (_stricmp(key.c_str(), "ladderIP") == 0 || _stricmp(key.c_str(), "host") == 0)
+			{
+				room.ladderIP = value;
+			}
+			else if (_stricmp(key.c_str(), "ladderPort") == 0 || _stricmp(key.c_str(), "port") == 0)
+			{
+				room.ladderPort = (UnsignedShort)atoi(value.c_str());
+			}
+			else if (_stricmp(key.c_str(), "ping") == 0)
+			{
+				room.pingString = value;
+			}
+			else if (_stricmp(key.c_str(), "players") == 0)
+			{
+				room.numPlayers = atoi(value.c_str());
+			}
+			else if (_stricmp(key.c_str(), "maxPlayers") == 0)
+			{
+				room.maxPlayers = atoi(value.c_str());
+			}
+			else if (_stricmp(key.c_str(), "observers") == 0)
+			{
+				room.numObservers = atoi(value.c_str());
+			}
+			else if (_strnicmp(key.c_str(), "player", 6) == 0)
+			{
+				Int playerIndex = atoi(key.c_str() + 6);
+				if (playerIndex >= 0 && playerIndex < MAX_SLOTS)
+				{
+					PopulatePlayerFromValue(value, room.players[playerIndex]);
+				}
+			}
+		}
+
+		if (room.id <= 0)
+		{
+			room.id = fallbackId;
+		}
+
+		if (room.version == 0)
+		{
+			room.version = GetRegistryVersion();
+		}
+
+		if (room.exeCRC == 0 && TheGlobalData)
+		{
+			room.exeCRC = TheGlobalData->m_exeCRC;
+		}
+		if (room.iniCRC == 0 && TheGlobalData)
+		{
+			room.iniCRC = TheGlobalData->m_iniCRC;
+		}
+
+		if (room.maxPlayers <= 0)
+		{
+			room.maxPlayers = MAX_SLOTS;
+		}
+
+		if (room.numPlayers <= 0)
+		{
+			for (Int i = 0; i < MAX_SLOTS; ++i)
+			{
+				if (!room.players[i].name.empty())
+				{
+					++room.numPlayers;
+				}
+			}
+		}
+
+		if (room.name.empty() && !room.players[0].name.empty())
+		{
+			room.name = MultiByteToWideCharSingleLine(room.players[0].name.c_str());
+		}
+
+		return !room.name.empty() && !room.mapName.empty();
+	}
+
+	Bool ParseModernBrowserResponse(const std::string& response, std::vector<ModernBrowserRoom>& rooms)
+	{
+		rooms.clear();
+		std::vector<std::string> lines;
+		SplitString(response, '\n', lines);
+		Int fallbackId = 1;
+		for (size_t i = 0; i < lines.size(); ++i)
+		{
+			std::string line = lines[i];
+			TrimString(line);
+			if (line.empty() || line[0] == '#')
+			{
+				continue;
+			}
+
+			if (!line.empty() && line[line.length() - 1] == '\r')
+			{
+				line.erase(line.length() - 1);
+			}
+
+			ModernBrowserRoom room;
+			if (ParseModernBrowserRoom(line, fallbackId, room))
+			{
+				rooms.push_back(room);
+				++fallbackId;
+			}
+		}
+
+		return TRUE;
+	}
+}
 
 //-------------------------------------------------------------------------
 
@@ -273,6 +671,14 @@ public:
 	std::string getQMBotName( void ) { return m_matchbotName; }
 	Int getQMGroupRoom( void ) { return m_qmGroupRoom; }
 	Int getQMLadder( void ) { return m_qmInfo.QM.ladderID; }
+	Bool handleModernBrowserRequest( const PeerRequest& req );
+	void queueModernLoginResponse( void );
+	void queueModernGroupRoomResponse( void );
+	void queueModernJoinGroupRoomResponse( Int roomID, Bool ok );
+	void queueModernJoinFailure( Int roomID, Int result );
+	void refreshModernBrowserRooms( Bool restrictGameList );
+	Bool findModernRoomByID( Int roomID, ModernBrowserRoom *room );
+	void queueModernRoomResponse( const ModernBrowserRoom& room, Int action, Int percentComplete );
 
 	Int getCurrentGroupRoom(void) { return m_groupRoomID; }
 
@@ -342,6 +748,10 @@ private:
 	Bool m_sawEndOfEnumPlayers;
 	Bool m_sawMatchbot;
 	std::string m_matchbotName;
+	Bool m_modernBrowserEnabled;
+	Int m_modernNextRoomID;
+	std::map<Int, ModernBrowserRoom> m_modernHostedRooms;
+	std::map<Int, ModernBrowserRoom> m_modernDiscoveredRooms;
 };
 
 #ifdef USE_BROADCAST_KEYS
@@ -551,6 +961,351 @@ GameSpyPeerMessageQueue::GameSpyPeerMessageQueue()
 {
 	m_thread = NULL;
 	m_serialAuth = SERIAL_OK;
+}
+
+void PeerThreadClass::queueModernLoginResponse( void )
+{
+	PeerResponse resp;
+	resp.peerResponseType = PeerResponse::PEERRESPONSE_LOGIN;
+	resp.player.profileID = m_profileID;
+	resp.player.internalIP = 0;
+	resp.player.externalIP = 0;
+	resp.nick = m_loginName;
+	TheGameSpyPeerMessageQueue->addResponse(resp);
+
+	PSRequest psReq;
+	psReq.requestType = PSRequest::PSREQUEST_READPLAYERSTATS;
+	psReq.player.id = m_profileID;
+	psReq.nick = m_originalName;
+	psReq.email = m_email;
+	psReq.password = m_password;
+	TheGameSpyPSMessageQueue->addRequest(psReq);
+}
+
+void PeerThreadClass::queueModernGroupRoomResponse( void )
+{
+	PeerResponse resp;
+	resp.peerResponseType = PeerResponse::PEERRESPONSE_GROUPROOM;
+	resp.groupRoom.id = MODERN_GROUP_ROOM_ID;
+	resp.groupRoom.numWaiting = 0;
+	resp.groupRoom.maxWaiting = 200;
+	resp.groupRoom.numGames = 0;
+	resp.groupRoom.numPlaying = 0;
+	resp.groupRoomName = MODERN_GROUP_ROOM_NAME;
+	TheGameSpyPeerMessageQueue->addResponse(resp);
+}
+
+void PeerThreadClass::queueModernJoinGroupRoomResponse( Int roomID, Bool ok )
+{
+	PeerResponse resp;
+	resp.peerResponseType = PeerResponse::PEERRESPONSE_JOINGROUPROOM;
+	resp.joinGroupRoom.id = roomID;
+	resp.joinGroupRoom.ok = ok;
+	TheGameSpyPeerMessageQueue->addResponse(resp);
+}
+
+void PeerThreadClass::queueModernJoinFailure( Int roomID, Int result )
+{
+	PeerResponse resp;
+	resp.peerResponseType = PeerResponse::PEERRESPONSE_JOINSTAGINGROOM;
+	resp.joinStagingRoom.id = roomID;
+	resp.joinStagingRoom.ok = FALSE;
+	resp.joinStagingRoom.isHostPresent = FALSE;
+	resp.joinStagingRoom.result = result;
+	TheGameSpyPeerMessageQueue->addResponse(resp);
+}
+
+Bool PeerThreadClass::findModernRoomByID( Int roomID, ModernBrowserRoom *room )
+{
+	std::map<Int, ModernBrowserRoom>::iterator hostedIt = m_modernHostedRooms.find(roomID);
+	if (hostedIt != m_modernHostedRooms.end())
+	{
+		if (room)
+		{
+			*room = hostedIt->second;
+		}
+		return TRUE;
+	}
+
+	std::map<Int, ModernBrowserRoom>::iterator discoveredIt = m_modernDiscoveredRooms.find(roomID);
+	if (discoveredIt != m_modernDiscoveredRooms.end())
+	{
+		if (room)
+		{
+			*room = discoveredIt->second;
+		}
+		return TRUE;
+	}
+
+	return FALSE;
+}
+
+void PeerThreadClass::queueModernRoomResponse( const ModernBrowserRoom& room, Int action, Int percentComplete )
+{
+	PeerResponse resp;
+	resp.peerResponseType = PeerResponse::PEERRESPONSE_STAGINGROOM;
+	resp.stagingRoom.action = action;
+	resp.stagingRoom.isStaging = TRUE;
+	resp.stagingRoom.percentComplete = percentComplete;
+	resp.stagingRoom.id = room.id;
+	resp.stagingRoom.requiresPassword = room.requiresPassword;
+	resp.stagingRoom.allowObservers = room.allowObservers;
+	resp.stagingRoom.useStats = room.useStats;
+	resp.stagingRoom.version = room.version;
+	resp.stagingRoom.exeCRC = room.exeCRC;
+	resp.stagingRoom.iniCRC = room.iniCRC;
+	resp.stagingRoom.ladderPort = room.ladderPort;
+	resp.stagingRoom.numPlayers = room.numPlayers;
+	resp.stagingRoom.maxPlayers = room.maxPlayers;
+	resp.stagingRoom.numObservers = room.numObservers;
+	resp.stagingServerName = room.name;
+	resp.stagingRoomMapName = room.mapName;
+	resp.stagingServerLadderIP = room.ladderIP;
+	resp.stagingServerPingString = room.pingString;
+	for (Int playerIndex = 0; playerIndex < MAX_SLOTS; ++playerIndex)
+	{
+		resp.stagingRoomPlayerNames[playerIndex] = room.players[playerIndex].name;
+		resp.stagingRoom.wins[playerIndex] = room.players[playerIndex].wins;
+		resp.stagingRoom.losses[playerIndex] = room.players[playerIndex].losses;
+		resp.stagingRoom.profileID[playerIndex] = room.players[playerIndex].profileID;
+		resp.stagingRoom.faction[playerIndex] = room.players[playerIndex].faction;
+		resp.stagingRoom.color[playerIndex] = room.players[playerIndex].color;
+	}
+	TheGameSpyPeerMessageQueue->addResponse(resp);
+}
+
+void PeerThreadClass::refreshModernBrowserRooms( Bool restrictGameList )
+{
+	PeerResponse clearResp;
+	clearResp.peerResponseType = PeerResponse::PEERRESPONSE_STAGINGROOM;
+	clearResp.stagingRoom.action = PEER_CLEAR;
+	clearResp.stagingRoom.isStaging = TRUE;
+	clearResp.stagingRoom.percentComplete = 0;
+	TheGameSpyPeerMessageQueue->addResponse(clearResp);
+
+	AsciiString baseUrl;
+	if (!GetModernBrowserURL(baseUrl))
+	{
+		PeerResponse completeResp;
+		completeResp.peerResponseType = PeerResponse::PEERRESPONSE_STAGINGROOMLISTCOMPLETE;
+		TheGameSpyPeerMessageQueue->addResponse(completeResp);
+		return;
+	}
+
+	m_modernDiscoveredRooms.clear();
+
+	std::string payload;
+	std::vector<ModernBrowserRoom> rooms;
+	if (!DownloadBrowserResponse(BuildBrowserURL(baseUrl, restrictGameList, m_profileID), payload) || !ParseModernBrowserResponse(payload, rooms))
+	{
+		for (std::map<Int, ModernBrowserRoom>::iterator it = m_modernHostedRooms.begin(); it != m_modernHostedRooms.end(); ++it)
+		{
+			queueModernRoomResponse(it->second, PEER_ADD, 100);
+		}
+
+		PeerResponse completeResp;
+		completeResp.peerResponseType = PeerResponse::PEERRESPONSE_STAGINGROOMLISTCOMPLETE;
+		TheGameSpyPeerMessageQueue->addResponse(completeResp);
+		return;
+	}
+
+	for (size_t roomIndex = 0; roomIndex < rooms.size(); ++roomIndex)
+	{
+		const ModernBrowserRoom& room = rooms[roomIndex];
+		m_modernDiscoveredRooms[room.id] = room;
+		queueModernRoomResponse(room, PEER_ADD, (Int)(((roomIndex + 1) * 100) / (rooms.empty() ? 1 : rooms.size())));
+	}
+
+	for (std::map<Int, ModernBrowserRoom>::iterator it = m_modernHostedRooms.begin(); it != m_modernHostedRooms.end(); ++it)
+	{
+		queueModernRoomResponse(it->second, PEER_ADD, 100);
+	}
+
+	PeerResponse completeResp;
+	completeResp.peerResponseType = PeerResponse::PEERRESPONSE_STAGINGROOMLISTCOMPLETE;
+	TheGameSpyPeerMessageQueue->addResponse(completeResp);
+}
+
+Bool PeerThreadClass::handleModernBrowserRequest( const PeerRequest& req )
+{
+	if (!m_modernBrowserEnabled)
+	{
+		return FALSE;
+	}
+
+	switch (req.peerRequestType)
+	{
+	case PeerRequest::PEERREQUEST_LOGIN:
+		m_isConnecting = FALSE;
+		m_isConnected = TRUE;
+		m_originalName = req.nick;
+		m_loginName = req.nick;
+		m_profileID = req.login.profileID;
+		m_password = req.password;
+		m_email = req.email;
+		m_groupRoomID = 0;
+		m_localRoomID = 0;
+		queueModernLoginResponse();
+		queueModernGroupRoomResponse();
+		return TRUE;
+
+	case PeerRequest::PEERREQUEST_LOGOUT:
+		m_isConnecting = FALSE;
+		m_isConnected = FALSE;
+		m_groupRoomID = 0;
+		m_localRoomID = 0;
+		m_localStagingServerName = L"";
+		return TRUE;
+
+	case PeerRequest::PEERREQUEST_JOINGROUPROOM:
+		m_groupRoomID = req.groupRoom.id;
+		m_localRoomID = req.groupRoom.id;
+		queueModernJoinGroupRoomResponse(req.groupRoom.id, TRUE);
+		return TRUE;
+
+	case PeerRequest::PEERREQUEST_LEAVEGROUPROOM:
+		m_groupRoomID = 0;
+		m_localRoomID = 0;
+		return TRUE;
+
+	case PeerRequest::PEERREQUEST_STARTGAMELIST:
+		refreshModernBrowserRooms(req.gameList.restrictGameList);
+		return TRUE;
+
+	case PeerRequest::PEERREQUEST_STOPGAMELIST:
+		return TRUE;
+
+	case PeerRequest::PEERREQUEST_GETEXTENDEDSTAGINGROOMINFO:
+		{
+			ModernBrowserRoom room;
+			if (findModernRoomByID(req.stagingRoom.id, &room))
+			{
+				queueModernRoomResponse(room, PEER_UPDATE, 100);
+			}
+		}
+		return TRUE;
+
+	case PeerRequest::PEERREQUEST_JOINSTAGINGROOM:
+		{
+			ModernBrowserRoom room;
+			if (!findModernRoomByID(req.stagingRoom.id, &room))
+			{
+				queueModernJoinFailure(req.stagingRoom.id, PEERJoinFailed);
+				return TRUE;
+			}
+
+			m_isHosting = FALSE;
+			m_localRoomID = req.stagingRoom.id;
+			m_localStagingServerName = room.name;
+			m_groupRoomID = 0;
+
+			PeerResponse resp;
+			resp.peerResponseType = PeerResponse::PEERRESPONSE_JOINSTAGINGROOM;
+			resp.joinStagingRoom.id = req.stagingRoom.id;
+			resp.joinStagingRoom.ok = TRUE;
+			resp.joinStagingRoom.isHostPresent = TRUE;
+			resp.joinStagingRoom.result = PEERJoinSuccess;
+			for (Int i = 0; i < MAX_SLOTS; ++i)
+			{
+				resp.stagingRoomPlayerNames[i] = room.players[i].name;
+			}
+			TheGameSpyPeerMessageQueue->addResponse(resp);
+		}
+		return TRUE;
+
+	case PeerRequest::PEERREQUEST_CREATESTAGINGROOM:
+		{
+			ModernBrowserRoom room;
+			room.id = ++m_modernNextRoomID;
+			room.name = req.text;
+			room.mapName = req.gameOptsMapName;
+			room.requiresPassword = (req.password.length() > 0) ? TRUE : FALSE;
+			room.allowObservers = req.stagingRoomCreation.allowObservers;
+			room.useStats = req.stagingRoomCreation.useStats;
+			room.version = req.stagingRoomCreation.gameVersion;
+			room.exeCRC = req.stagingRoomCreation.exeCRC;
+			room.iniCRC = req.stagingRoomCreation.iniCRC;
+			room.ladderIP = req.ladderIP;
+			if (room.ladderIP.empty())
+			{
+				room.ladderIP = "127.0.0.1";
+			}
+			room.ladderPort = req.stagingRoomCreation.ladPort;
+			room.pingString = req.hostPingStr;
+			room.numPlayers = 1;
+			room.maxPlayers = MAX_SLOTS;
+			room.numObservers = 0;
+			room.players[0].name = m_loginName;
+			room.players[0].wins = 0;
+			room.players[0].losses = 0;
+			room.players[0].profileID = m_profileID;
+			room.players[0].faction = 0;
+			room.players[0].color = 0;
+
+			m_modernHostedRooms[room.id] = room;
+			m_modernDiscoveredRooms[room.id] = room;
+			m_isHosting = TRUE;
+			m_localRoomID = room.id;
+			m_localStagingServerName = room.name;
+			m_groupRoomID = 0;
+
+			PeerResponse resp;
+			resp.peerResponseType = PeerResponse::PEERRESPONSE_CREATESTAGINGROOM;
+			resp.createStagingRoom.result = PEERJoinSuccess;
+			TheGameSpyPeerMessageQueue->addResponse(resp);
+			queueModernRoomResponse(room, PEER_ADD, 100);
+		}
+		return TRUE;
+
+	case PeerRequest::PEERREQUEST_LEAVESTAGINGROOM:
+		m_isHosting = FALSE;
+		m_localRoomID = 0;
+		m_localStagingServerName = L"";
+		return TRUE;
+
+	case PeerRequest::PEERREQUEST_SETGAMEOPTIONS:
+		if (m_isHosting && m_localRoomID > 0)
+		{
+			std::map<Int, ModernBrowserRoom>::iterator it = m_modernHostedRooms.find(m_localRoomID);
+			if (it != m_modernHostedRooms.end())
+			{
+				ModernBrowserRoom& room = it->second;
+				if (req.gameOptsMapName.length() > 0)
+				{
+					room.mapName = req.gameOptsMapName;
+				}
+				room.numPlayers = req.gameOptions.numPlayers;
+				room.numObservers = req.gameOptions.numObservers;
+				room.maxPlayers = req.gameOptions.maxPlayers;
+				for (Int i = 0; i < MAX_SLOTS; ++i)
+				{
+					room.players[i].name = req.gameOptsPlayerNames[i];
+					room.players[i].wins = req.gameOptions.wins[i];
+					room.players[i].losses = req.gameOptions.losses[i];
+					room.players[i].profileID = req.gameOptions.profileID[i];
+					room.players[i].faction = req.gameOptions.faction[i];
+					room.players[i].color = req.gameOptions.color[i];
+				}
+				m_modernDiscoveredRooms[room.id] = room;
+				queueModernRoomResponse(room, PEER_UPDATE, 100);
+			}
+		}
+		return TRUE;
+
+	case PeerRequest::PEERREQUEST_MESSAGEPLAYER:
+	case PeerRequest::PEERREQUEST_MESSAGEROOM:
+	case PeerRequest::PEERREQUEST_UTMPLAYER:
+	case PeerRequest::PEERREQUEST_UTMROOM:
+	case PeerRequest::PEERREQUEST_STARTGAME:
+	case PeerRequest::PEERREQUEST_STARTQUICKMATCH:
+	case PeerRequest::PEERREQUEST_WIDENQUICKMATCHSEARCH:
+	case PeerRequest::PEERREQUEST_STOPQUICKMATCH:
+	case PeerRequest::PEERREQUEST_PUSHSTATS:
+		return TRUE;
+
+	default:
+		return FALSE;
+	}
 }
 
 GameSpyPeerMessageQueue::~GameSpyPeerMessageQueue()
@@ -1205,27 +1960,42 @@ void PeerThreadClass::Thread_Function()
 	callbacks.param = this;
 
 	m_qmGroupRoom = 0;
+	m_modernBrowserEnabled = FALSE;
+	m_modernNextRoomID = 500000;
+	m_modernHostedRooms.clear();
+	m_modernDiscoveredRooms.clear();
+	AsciiString modernBrowserUrl;
+	OptionPreferences pref;
+	if (GetModernBrowserURL(modernBrowserUrl))
+	{
+		m_modernBrowserEnabled = TRUE;
+	}
 
-	peer = peerInitialize( &callbacks );
-	DEBUG_ASSERTCRASH( peer != NULL, ("NULL peer!") );
 	m_isConnected = m_isConnecting = false;
+	peer = NULL;
 
-	qr2_register_key(EXECRC_KEY, EXECRC_STR);
-	qr2_register_key(INICRC_KEY, INICRC_STR);
-	qr2_register_key(PW_KEY, PW_STR);
-	qr2_register_key(OBS_KEY, OBS_STR);
-  qr2_register_key(USE_STATS_KEY, USE_STATS_STR);
-	qr2_register_key(LADIP_KEY, LADIP_STR);
-	qr2_register_key(LADPORT_KEY, LADPORT_STR);
-	qr2_register_key(PINGSTR_KEY, PINGSTR_STR);
-	qr2_register_key(NUMOBS_KEY, NUMOBS_STR);
-	qr2_register_key(NUMPLAYER_KEY, NUMPLAYER_STR);
-	qr2_register_key(MAXPLAYER_KEY, MAXPLAYER_STR);
-	qr2_register_key(NAME__KEY, NAME__STR "_");
-	qr2_register_key(WINS__KEY, WINS__STR "_");
-	qr2_register_key(LOSSES__KEY, LOSSES__STR "_");
-	qr2_register_key(FACTION__KEY, FACTION__STR "_");
-	qr2_register_key(COLOR__KEY, COLOR__STR "_");
+	if (!m_modernBrowserEnabled)
+	{
+		peer = peerInitialize( &callbacks );
+		DEBUG_ASSERTCRASH( peer != NULL, ("NULL peer!"));
+
+		qr2_register_key(EXECRC_KEY, EXECRC_STR);
+		qr2_register_key(INICRC_KEY, INICRC_STR);
+		qr2_register_key(PW_KEY, PW_STR);
+		qr2_register_key(OBS_KEY, OBS_STR);
+  	qr2_register_key(USE_STATS_KEY, USE_STATS_STR);
+		qr2_register_key(LADIP_KEY, LADIP_STR);
+		qr2_register_key(LADPORT_KEY, LADPORT_STR);
+		qr2_register_key(PINGSTR_KEY, PINGSTR_STR);
+		qr2_register_key(NUMOBS_KEY, NUMOBS_STR);
+		qr2_register_key(NUMPLAYER_KEY, NUMPLAYER_STR);
+		qr2_register_key(MAXPLAYER_KEY, MAXPLAYER_STR);
+		qr2_register_key(NAME__KEY, NAME__STR "_");
+		qr2_register_key(WINS__KEY, WINS__STR "_");
+		qr2_register_key(LOSSES__KEY, LOSSES__STR "_");
+		qr2_register_key(FACTION__KEY, FACTION__STR "_");
+		qr2_register_key(COLOR__KEY, COLOR__STR "_");
+	}
 
 	const Int NumKeys = 15;
 	unsigned char allKeysArray[NumKeys] = {
@@ -1254,6 +2024,9 @@ void PeerThreadClass::Thread_Function()
 		HOSTNAME_KEY
   };
 
+	if (!m_modernBrowserEnabled)
+	{
+
 	/*
 	const char *allKeys = "\\pid_\\mapname\\gamever\\gamename" \
 		"\\" EXECRC_STR "\\" INICRC_STR \
@@ -1263,9 +2036,9 @@ void PeerThreadClass::Thread_Function()
 		"\\" NAME__STR "_" "\\" WINS__STR "_" "\\" LOSSES__STR "_" "\\" FACTION__STR "_" "\\" COLOR__STR "_";
 	*/
 
-	const char * key = "username";
-	peerSetRoomWatchKeys(peer, StagingRoom, 1, &key, PEERTrue);
-	peerSetRoomWatchKeys(peer, GroupRoom, 1, &key, PEERTrue);
+		const char * key = "username";
+		peerSetRoomWatchKeys(peer, StagingRoom, 1, &key, PEERTrue);
+		peerSetRoomWatchKeys(peer, GroupRoom, 1, &key, PEERTrue);
 
 	m_localRoomID = 0;
 	m_localStagingServerName = L"";
@@ -1308,34 +2081,34 @@ void PeerThreadClass::Thread_Function()
 	secretKey[4]='k';secretKey[5]='3';secretKey[6]='\0';
 	/**/
 
-	// Set the title.
-	/////////////////
-	if(!peerSetTitle( peer , gameName, secretKey, gameName, secretKey, GetRegistryVersion(), 30, PEERTrue, pingRooms, crossPingRooms))
-	{
-		DEBUG_CRASH(("Error setting title"));
-		peerShutdown( peer );
-		peer = NULL;
-		return;
-	}
-
-	OptionPreferences pref;
-	UnsignedInt preferredIP = INADDR_ANY;
-	UnsignedInt selectedIP = pref.getOnlineIPAddress();
-	DEBUG_LOG(("Looking for IP %X\n", selectedIP));
-	IPEnumeration IPs;
-	EnumeratedIP *IPlist = IPs.getAddresses();
-	while (IPlist)
-	{
-		DEBUG_LOG(("Looking at IP %s\n", IPlist->getIPstring().str()));
-		if (selectedIP == IPlist->getIP())
+		// Set the title.
+		/////////////////
+		if(!peerSetTitle( peer , gameName, secretKey, gameName, secretKey, GetRegistryVersion(), 30, PEERTrue, pingRooms, crossPingRooms))
 		{
-			preferredIP = IPlist->getIP();
-			DEBUG_LOG(("Connecting to GameSpy chat server via IP address %8.8X\n", preferredIP));
-			break;
+			DEBUG_CRASH(("Error setting title"));
+			peerShutdown( peer );
+			peer = NULL;
+			return;
 		}
-		IPlist = IPlist->getNext();
+
+		UnsignedInt preferredIP = INADDR_ANY;
+		UnsignedInt selectedIP = pref.getOnlineIPAddress();
+		DEBUG_LOG(("Looking for IP %X\n", selectedIP));
+		IPEnumeration IPs;
+		EnumeratedIP *IPlist = IPs.getAddresses();
+		while (IPlist)
+		{
+			DEBUG_LOG(("Looking at IP %s\n", IPlist->getIPstring().str()));
+			if (selectedIP == IPlist->getIP())
+			{
+				preferredIP = IPlist->getIP();
+				DEBUG_LOG(("Connecting to GameSpy chat server via IP address %8.8X\n", preferredIP));
+				break;
+			}
+			IPlist = IPlist->getNext();
+		}
+		chatSetLocalIP(preferredIP);
 	}
-	chatSetLocalIP(preferredIP);
 
 	UnsignedInt preferredQRPort = 0;
 	AsciiString selectedQRPort = pref["GameSpyQRPort"];
@@ -1351,6 +2124,12 @@ void PeerThreadClass::Thread_Function()
 		if (TheGameSpyPeerMessageQueue->getRequest(incomingRequest))
 		{
 			DEBUG_LOG(("TheGameSpyPeerMessageQueue->getRequest() got request of type %d\n", incomingRequest.peerRequestType));
+			if (handleModernBrowserRequest(incomingRequest))
+			{
+				Switch_Thread();
+				continue;
+			}
+
 			switch (incomingRequest.peerRequestType)
 			{
 			case PeerRequest::PEERREQUEST_LOGIN:
@@ -1749,16 +2528,19 @@ void PeerThreadClass::Thread_Function()
 		}
 
 		// update the network
-		PEERBool isConnected = PEERTrue;
-		isConnected = peerIsConnected( peer );
-		if ( isConnected == PEERTrue )
+		PEERBool isConnected = PEERFalse;
+		if (!m_modernBrowserEnabled && peer != NULL)
 		{
-			if (qr2Sock != INVALID_SOCKET)
+			isConnected = peerIsConnected( peer );
+			if ( isConnected == PEERTrue )
 			{
-				// check hosting activity
-				checkQR2Queries( peer, qr2Sock );
+				if (qr2Sock != INVALID_SOCKET)
+				{
+					// check hosting activity
+					checkQR2Queries( peer, qr2Sock );
+				}
+				peerThink( peer );
 			}
-			peerThink( peer );
 		}
 
 		// end our timeslice
@@ -1766,7 +2548,10 @@ void PeerThreadClass::Thread_Function()
 	}
 
 	DEBUG_LOG(("voluntarily ending peer thread %d\n", running));
-	peerShutdown( peer );
+	if (peer != NULL)
+	{
+		peerShutdown( peer );
+	}
 
 	} catch ( ... ) {
 		DEBUG_CRASH(("Exception in peer thread!"));
@@ -1828,10 +2613,11 @@ void PeerThreadClass::handleQMMatch(PEER peer, Int mapIndex, Int seed,
 {
 	if (m_qmStatus == QM_WORKING)
 	{
+		Int i;
 		m_qmStatus = QM_MATCHED;
 		peerLeaveRoom(peer, GroupRoom, "");
 
-		for (Int i=0; i<MAX_SLOTS; ++i)
+		for (i=0; i<MAX_SLOTS; ++i)
 		{
 			if (playerName[i] && stricmp(playerName[i], m_loginName.c_str()))
 			{
@@ -2232,7 +3018,7 @@ static void listGroupRoomsCallback(PEER peer, PEERBool success,
 		}
 		else
 		{
-			resp.groupRoomName.empty();
+			resp.groupRoomName.clear();
 		}
 		TheGameSpyPeerMessageQueue->addResponse(resp);
 #ifdef SERVER_DEBUGGING

@@ -58,8 +58,13 @@
 
 struct IDirect3DBaseTexture9;
 struct IDirect3DTexture9;
-struct IDirect3DCubeTexture8;
-struct IDirect3DVolumeTexture8;
+struct IDirect3DCubeTexture9;
+struct IDirect3DVolumeTexture9;
+#if !defined(_D3D8_H_)
+typedef IDirect3DCubeTexture9 IDirect3DCubeTexture8;
+typedef IDirect3DVolumeTexture9 IDirect3DVolumeTexture8;
+typedef IDirect3DTexture9 IDirect3DTexture8;
+#endif
 
 class DX8Wrapper;
 class TextureLoader;

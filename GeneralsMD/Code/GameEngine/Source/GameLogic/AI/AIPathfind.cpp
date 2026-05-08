@@ -924,7 +924,7 @@ void Path::computePointOnPath(
 		// projected position on the path.  If we are very far off the path, we will move 
 		// directly towards the nearest point on the path, and not the next path node.
 		const Real maxPathError = 3.0f * PATHFIND_CELL_SIZE_F;
-		const Real maxPathErrorInv = 1.0 / maxPathError;
+		const Real maxPathErrorInv = 1.0f / maxPathError;
 		Real k = offsetDist * maxPathErrorInv;
 		if (k > 1.0f)
 			k = 1.0f;
@@ -1201,7 +1201,7 @@ PathfindCell::~PathfindCell( void )
 { 	
 	if (m_info) PathfindCellInfo::releaseACellInfo(m_info);
 	m_info = NULL;
-	static warn = true;
+	static Bool warn = TRUE;
 	if (warn) {
 		warn = false;
 		DEBUG_LOG( ("PathfindCell::~PathfindCell m_info Allocated."));
@@ -4031,6 +4031,8 @@ void Pathfinder::classifyFence( Object *obj, Bool insert )
 	IRegion2D cellBounds;
 	cellBounds.lo.x = REAL_TO_INT_FLOOR((pos->x + 0.5f)/PATHFIND_CELL_SIZE_F);
 	cellBounds.lo.y = REAL_TO_INT_FLOOR((pos->y + 0.5f)/PATHFIND_CELL_SIZE_F);
+	cellBounds.hi.x = cellBounds.lo.x;  // initialise to a valid point; loop expands outward
+	cellBounds.hi.y = cellBounds.lo.y;
 	Bool didAnything = false;
 
  	for (Int iy = 0; iy < numStepsY; ++iy, tl_x += ydx, tl_y += ydy)
@@ -6806,18 +6808,8 @@ Path *Pathfinder::buildGroundPath(Bool isCrusher, const Coord3D *fromPos, Pathfi
 		color.blue = 0;
 		color.red = color.green = 1;
 		Coord3D pos;
-		for( PathNode *node = path->getFirstNode(); node; node = node->getNext() )
-		{
-
-			// create objects to show path - they decay
-
-			pos = *node->getPosition();
-			color.red = color.green = 1;
-			if (node->getLayer() != LAYER_GROUND) {
-				color.red = 0;
-			}
-			addIcon(&pos, PATHFIND_CELL_SIZE_F*.25f, 200, color);
-		}
+		PathNode *node;
+		for( node = path->getFirstNode(); node; node = node->getNext() )
 
 		// show optimized path
 		for( node = path->getFirstNode(); node; node = node->getNextOptimized() )
@@ -8999,7 +8991,8 @@ Path *Pathfinder::buildActualPath( const Object *obj, LocomotorSurfaceTypeMask a
 		color.blue = 0;
 		color.red = color.green = 1;
 		Coord3D pos;
-		for( PathNode *node = path->getFirstNode(); node; node = node->getNext() )
+		PathNode *node;
+		for( node = path->getFirstNode(); node; node = node->getNext() )
 		{
 
 			// create objects to show path - they decay

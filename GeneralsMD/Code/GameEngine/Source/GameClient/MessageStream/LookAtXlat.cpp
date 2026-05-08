@@ -298,7 +298,6 @@ GameMessageDisposition LookAtTranslator::translateGameMessage(const GameMessage 
 				break;
 			}
 
-			if (!TheGlobalData->m_windowed)
 			{
 				if (m_isScrolling)
 				{

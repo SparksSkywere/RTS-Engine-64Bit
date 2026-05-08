@@ -288,7 +288,7 @@ public:
 	inline unsigned Get_FVF() const { return FVF; }
 	inline unsigned Get_FVF_Size() const { return fvf_size; }
 
-	void Get_FFV_Name(StringClass& fvfname) const;	// For debug purposes
+	void Get_FVF_Name(StringClass& fvfname) const;	// For debug purposes
 
 	// for enabling vertex shaders
 	inline void Set_FVF(unsigned fvf) const { FVF=fvf; }

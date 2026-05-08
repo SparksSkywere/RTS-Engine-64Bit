@@ -60,17 +60,18 @@ void Win32BIGFileSystem::init() {
 
 	loadBigFilesFromDirectory("", "*.big");
 
-    // load original Generals assets
-    AsciiString installPath;
-    GetStringFromGeneralsRegistry("", "InstallPath", installPath );
-    //@todo this will need to be ramped up to a crash for release
-#ifndef _INTERNAL
-    // had to make this non-internal only, otherwise we can't autobuild
-    // GeneralsZH...
-    DEBUG_ASSERTCRASH(installPath != "", ("Be 1337! Go install Generals!"));
-#endif
-    if (installPath!="")
-      loadBigFilesFromDirectory(installPath, "*.big");
+	// Load original Generals assets if an installed retail path is available.
+	// Modern source builds may only have the local Run-folder data layout.
+	AsciiString installPath;
+	GetStringFromGeneralsRegistry("", "InstallPath", installPath );
+	if (installPath != "")
+	{
+		loadBigFilesFromDirectory(installPath, "*.big");
+	}
+	else
+	{
+		DEBUG_LOG(("Win32BIGFileSystem::init - Generals InstallPath not found in registry; using local Run directory assets only.\n"));
+	}
 }
 
 void Win32BIGFileSystem::reset() {

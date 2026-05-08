@@ -73,7 +73,6 @@
 #include "GameNetwork/DownloadManager.h"
 #include "GameNetwork/GameSpy/MainMenuUtils.h"
 
-#include "GameClient/CDCheck.h"
 //Added By Saad
 //for accessing the InGameUI
 #include "GameClient/InGameUI.h"
@@ -197,7 +196,7 @@ enum
 	SHOW_FRAMES_LIMIT = 20
 };
 
-static showFade = FALSE;
+static Bool showFade = FALSE;
 static Int dropDown = DROPDOWN_NONE;
 static Int pendingDropDown = DROPDOWN_NONE;
 static AnimateWindowManager *localAnimateWindowManager = NULL;
@@ -212,9 +211,10 @@ static Bool justEntered = FALSE;
 static Bool launchChallengeMenu = FALSE;
 
 static Bool dontAllowTransitions = FALSE;
+static Bool allowMainMenuHoverAudio = FALSE;
 
 //Added by Saad
-const /*Int TIME_OUT = 15,*/ CORNER = 10;
+const Int /*TIME_OUT = 15,*/ CORNER = 10;
 void AcceptResolution();
 void DeclineResolution();
 GameWindow *resAcceptMenu = NULL;
@@ -309,23 +309,6 @@ void prepareCampaignGame(GameDifficulty diff)
 	setupGameStart(TheCampaignManager->getCurrentMap(), diff );
 }
 
-static MessageBoxReturnType cancelStartBecauseOfNoCD( void *userData )
-{
-	return MB_RETURN_CLOSE;
-}
-
-static MessageBoxReturnType checkCDCallback( void *userData )
-{
-	if (!IsFirstCDPresent())
-	{
-		return MB_RETURN_KEEPOPEN;
-	}
-	else
-	{
-		prepareCampaignGame((GameDifficulty)(Int)(Int *)userData);
-		return MB_RETURN_CLOSE;
-	}
-}
 
 static void doGameStart( void )
 {
@@ -344,19 +327,7 @@ static void doGameStart( void )
 	isShuttingDown = TRUE;
 }
 
-static void checkCDBeforeCampaign(GameDifficulty diff)
-{
-	if (!IsFirstCDPresent())
-	{
-		// popup a dialog asking for a CD
-		ExMessageBoxOkCancel(TheGameText->fetch("GUI:InsertCDPrompt"), TheGameText->fetch("GUI:InsertCDMessage"),
-			(void *)diff, checkCDCallback, cancelStartBecauseOfNoCD);
-	}
-	else
-	{
-		prepareCampaignGame(diff);
-	}
-}
+
 
 static void shutdownComplete( WindowLayout *layout )
 {
@@ -454,6 +425,10 @@ void MainMenuInit( WindowLayout *layout, void *userData )
 {
 	TheWritableGlobalData->m_breakTheMovie = FALSE;
 
+	// Reset transition guard so it can't carry over from a previous menu visit
+	// and permanently block the Options button on re-entry.
+	dontAllowTransitions = FALSE;
+
 	TheShell->showShellMap(TRUE);
 	TheMouse->setVisibility(TRUE);
 	//winVidManager = NEW WindowVideoManager;
@@ -546,6 +521,7 @@ void MainMenuInit( WindowLayout *layout, void *userData )
 	dropDownWindows[DROPDOWN_MAIN] = TheWindowManager->winGetWindowFromId( parentMainMenu, TheNameKeyGenerator->nameToKey( AsciiString("MainMenu.wnd:MapBorder2") ) );
 	dropDownWindows[DROPDOWN_LOADREPLAY] = TheWindowManager->winGetWindowFromId( parentMainMenu, TheNameKeyGenerator->nameToKey( AsciiString("MainMenu.wnd:MapBorder3") ) );
 	dropDownWindows[DROPDOWN_DIFFICULTY] = TheWindowManager->winGetWindowFromId( parentMainMenu, TheNameKeyGenerator->nameToKey( AsciiString("MainMenu.wnd:MapBorder4") ) );
+	Int i;
 	for(i = 1; i < DROPDOWN_COUNT; ++i)
 		dropDownWindows[i]->winHide(TRUE);
 
@@ -981,13 +957,10 @@ void MainMenuUpdate( WindowLayout *layout, void *userData )
 WindowMsgHandledType MainMenuInput( GameWindow *window, UnsignedInt msg,
 																		WindowMsgData mData1, WindowMsgData mData2 )
 {
-
-	if(!notShown)
-		return MSG_IGNORED;
+	const Bool menuHidden = notShown;
 	
 	switch( msg ) 
 	{
-
 		// --------------------------------------------------------------------------------------------
 		case GWM_MOUSE_POS:
 		{
@@ -999,12 +972,17 @@ WindowMsgHandledType MainMenuInput( GameWindow *window, UnsignedInt msg,
 
 			static Int mousePosX = mouse.x;
 			static Int mousePosY = mouse.y;
-			if(abs(mouse.x - mousePosX) > 20 || abs(mouse.y - mousePosY) > 20)
+			Int dx = abs(mouse.x - mousePosX);
+			Int dy = abs(mouse.y - mousePosY);
+			Int threshold = menuHidden ? 20 : 2;
+			if(dx > threshold || dy > threshold)
 			{
-			
+				mousePosX = mouse.x;
+				mousePosY = mouse.y;
 				DEBUG_LOG(("Mouse X:%d, Y:%d\n", mouse.x, mouse.y));
-				if(notShown)
+				if(menuHidden)
 				{
+					allowMainMenuHoverAudio = FALSE;
 					initialGadgetDelay = 1;
 					dropDownWindows[DROPDOWN_MAIN]->winHide(FALSE);
 					TheTransitionHandler->setGroup("MainMenuFade", TRUE);
@@ -1012,6 +990,10 @@ WindowMsgHandledType MainMenuInput( GameWindow *window, UnsignedInt msg,
 					TheMouse->setVisibility(TRUE);
 					notShown = FALSE;
 					return MSG_HANDLED;
+				}
+				if( !dontAllowTransitions && (TheTransitionHandler == NULL || TheTransitionHandler->isFinished()) )
+				{
+					allowMainMenuHoverAudio = TRUE;
 				}
 			}
 			
@@ -1047,6 +1029,9 @@ WindowMsgHandledType MainMenuSystem( GameWindow *window, UnsignedInt msg,
 {
 	static Bool triedToInitWOLAPI = FALSE;
 	static Bool canInitWOLAPI = FALSE;
+	static Int lastHighlightedControlID = -1;
+	static Int lastHighlightMouseX = -1;
+	static Int lastHighlightMouseY = -1;
 	
 	switch( msg ) 
 	{
@@ -1054,6 +1039,10 @@ WindowMsgHandledType MainMenuSystem( GameWindow *window, UnsignedInt msg,
 		//---------------------------------------------------------------------------------------------
 		case GWM_CREATE:
 		{
+			allowMainMenuHoverAudio = FALSE;
+			lastHighlightedControlID = -1;
+			lastHighlightMouseX = -1;
+			lastHighlightMouseY = -1;
 			ghttpStartup();
 			break;
 		}  // end case
@@ -1085,21 +1074,46 @@ WindowMsgHandledType MainMenuSystem( GameWindow *window, UnsignedInt msg,
 		{
 			GameWindow *control = (GameWindow *)mData1;
 			Int controlID = control->winGetWindowId();
+			Int mouseX = mData2 & 0xFFFF;
+			Int mouseY = mData2 >> 16;
+			if( dontAllowTransitions && !campaignSelected )
+			{
+				lastHighlightedControlID = -1;
+				lastHighlightMouseX = mouseX;
+				lastHighlightMouseY = mouseY;
+				break;
+			}
+			if( controlID == lastHighlightedControlID )
+			{
+				break;
+			}
+			if( mouseX == lastHighlightMouseX && mouseY == lastHighlightMouseY )
+			{
+				lastHighlightedControlID = controlID;
+				break;
+			}
+			lastHighlightedControlID = controlID;
+			lastHighlightMouseX = mouseX;
+			lastHighlightMouseY = mouseY;
 			if(controlID == onlineID)
 			{
-				TheScriptEngine->signalUIInteract(TheShellHookNames[SHELL_SCRIPT_HOOK_MAIN_MENU_ONLINE_HIGHLIGHTED]);
+				if( allowMainMenuHoverAudio )
+					TheScriptEngine->signalUIInteract(TheShellHookNames[SHELL_SCRIPT_HOOK_MAIN_MENU_ONLINE_HIGHLIGHTED]);
 			}
 			else if(controlID == networkID)
 			{
-				TheScriptEngine->signalUIInteract(TheShellHookNames[SHELL_SCRIPT_HOOK_MAIN_MENU_NETWORK_HIGHLIGHTED]);
+				if( allowMainMenuHoverAudio )
+					TheScriptEngine->signalUIInteract(TheShellHookNames[SHELL_SCRIPT_HOOK_MAIN_MENU_NETWORK_HIGHLIGHTED]);
 			}
 			else if(controlID == optionsID)
 			{
-				TheScriptEngine->signalUIInteract(TheShellHookNames[SHELL_SCRIPT_HOOK_MAIN_MENU_OPTIONS_HIGHLIGHTED]);
+				if( allowMainMenuHoverAudio )
+					TheScriptEngine->signalUIInteract(TheShellHookNames[SHELL_SCRIPT_HOOK_MAIN_MENU_OPTIONS_HIGHLIGHTED]);
 			}
 			else if(controlID == exitID)
 			{
-				TheScriptEngine->signalUIInteract(TheShellHookNames[SHELL_SCRIPT_HOOK_MAIN_MENU_EXIT_HIGHLIGHTED]);
+				if( allowMainMenuHoverAudio )
+					TheScriptEngine->signalUIInteract(TheShellHookNames[SHELL_SCRIPT_HOOK_MAIN_MENU_EXIT_HIGHLIGHTED]);
 			}
 			else if(controlID == buttonChallengeID)
 			{
@@ -1203,6 +1217,12 @@ WindowMsgHandledType MainMenuSystem( GameWindow *window, UnsignedInt msg,
 		{
 			GameWindow *control = (GameWindow *)mData1;
 			Int controlID = control->winGetWindowId();
+			if( controlID == lastHighlightedControlID )
+			{
+				lastHighlightedControlID = -1;
+			}
+			lastHighlightMouseX = -1;
+			lastHighlightMouseY = -1;
 
 			if(controlID == onlineID)
 			{
@@ -1459,7 +1479,7 @@ WindowMsgHandledType MainMenuSystem( GameWindow *window, UnsignedInt msg,
 				showLogo = FALSE;
 				showSide = SHOW_USA;
 */
-				checkCDBeforeCampaign(DIFFICULTY_NORMAL);
+				prepareCampaignGame(DIFFICULTY_NORMAL);
 				break;
 #endif
 				TheShell->push( AsciiString("Menus/SkirmishGameOptionsMenu.wnd") );
@@ -1493,18 +1513,21 @@ WindowMsgHandledType MainMenuSystem( GameWindow *window, UnsignedInt msg,
 			}  // end else if
 			else if( controlID == optionsID )
 			{
-				if(dontAllowTransitions)
-					break;
+				// Options is always accessible: do NOT check dontAllowTransitions,
+				// since Options is independent of faction-selection animations.
 				dontAllowTransitions = TRUE;
-				//buttonPushed = TRUE;
-				TheScriptEngine->signalUIInteract(TheShellHookNames[SHELL_SCRIPT_HOOK_MAIN_MENU_OPTIONS_SELECTED]);
-
-				// load the options menu
 				WindowLayout *optLayout = TheShell->getOptionsLayout(TRUE);
-				DEBUG_ASSERTCRASH(optLayout != NULL, ("unable to get options menu layout"));
-				optLayout->runInit();
-				optLayout->hide(FALSE);
-				optLayout->bringForward();
+				if (optLayout)
+				{
+					optLayout->runInit();
+					optLayout->hide(FALSE);
+					optLayout->bringForward();
+					TheScriptEngine->signalUIInteract(TheShellHookNames[SHELL_SCRIPT_HOOK_MAIN_MENU_OPTIONS_SELECTED]);
+				}
+				else
+				{
+					dontAllowTransitions = FALSE;
+				}
 			}  // end else if
 			else if( controlID == worldBuilderID )
 			{
@@ -1670,21 +1693,21 @@ WindowMsgHandledType MainMenuSystem( GameWindow *window, UnsignedInt msg,
 				if(dontAllowTransitions)
 					break;
 
-				checkCDBeforeCampaign(DIFFICULTY_EASY);
+				prepareCampaignGame(DIFFICULTY_EASY);
 			}
 			else if(controlID == buttonMediumID)
 			{
 				if(dontAllowTransitions)
 					break;
 
-				checkCDBeforeCampaign(DIFFICULTY_NORMAL);
+				prepareCampaignGame(DIFFICULTY_NORMAL);
 			}
 			else if(controlID == buttonHardID)
 			{
 				if(dontAllowTransitions)
 					break;
 
-				checkCDBeforeCampaign(DIFFICULTY_HARD);
+				prepareCampaignGame(DIFFICULTY_HARD);
 			}
 			else if(controlID == buttonDiffBackID)
 			{

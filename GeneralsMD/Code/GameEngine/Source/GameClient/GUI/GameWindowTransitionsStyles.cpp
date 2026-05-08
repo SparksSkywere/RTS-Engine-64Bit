@@ -293,10 +293,16 @@ void ButtonFlashTransition::update( Int frame )
 				if(m_isForward)
 				{
 					AudioEventRTS buttonClick("GUIButtonsFadeIn");
+					static DWORD s_lastButtonsFadeInSoundTime = 0;
 	
 					if( TheAudio )
 					{
-						TheAudio->addAudioEvent( &buttonClick );
+						DWORD now = GetTickCount();
+						if( s_lastButtonsFadeInSoundTime == 0 || (now - s_lastButtonsFadeInSoundTime) > 150 )
+						{
+							TheAudio->addAudioEvent( &buttonClick );
+							s_lastButtonsFadeInSoundTime = now;
+						}
 					}  // end if
 
 					m_drawState = frame;
@@ -801,14 +807,8 @@ void ScaleUpTransition::update( Int frame )
 	case SCALEUPTRANSITION_1:
 		if(m_isForward)
 		{
-			AudioEventRTS buttonClick("GUILogoMouseOver");
-
-			if( TheAudio )
-			{
-				TheAudio->addAudioEvent( &buttonClick );
-			}  // end if
-
-			
+			// Do not auto-fire hover audio while menu buttons are animating in.
+			// Real mouse-enter sounds still come from the actual button callbacks.
 		}
 
 	case SCALEUPTRANSITION_2:
@@ -1186,12 +1186,7 @@ void MainMenuMediumScaleUpTransition::update( Int frame )
 	{
 		if(frame == 1 && m_isForward)
 		{
-			AudioEventRTS buttonClick("GUILogoMouseOver");
-
-			if( TheAudio )
-			{
-				TheAudio->addAudioEvent( &buttonClick );
-			}  // end if			
+			// Suppress synthetic hover audio during intro/load transitions.
 		}
 		if(m_win)
 			m_win->winHide(TRUE);

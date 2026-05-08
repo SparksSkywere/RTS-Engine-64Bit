@@ -798,11 +798,22 @@ void ScriptActions::doCreateReinforcements(const AsciiString& team, const AsciiS
 //-------------------------------------------------------------------------------------------------
 /** doMoveCameraTo */
 //-------------------------------------------------------------------------------------------------
+static void clampCameraWaypointToTerrain( Coord3D *pos )
+{
+	if( pos == NULL || TheTerrainLogic == NULL )
+		return;
+
+	Real groundHeight = TheTerrainLogic->getGroundHeight( pos->x, pos->y );
+	if( pos->z < groundHeight )
+		pos->z = groundHeight;
+}
+
 void ScriptActions::doMoveCameraTo(const AsciiString& waypoint, Real sec, Real cameraStutterSec, Real easeIn, Real easeOut)
 {
 	for (Waypoint *way = TheTerrainLogic->getFirstWaypoint(); way; way = way->getNext()) {
 		if (way->getName() == waypoint) {
 			Coord3D destination = *way->getLocation();
+			clampCameraWaypointToTerrain( &destination );
 			TheTacticalView->moveCameraTo(&destination, sec*1000, cameraStutterSec*1000, true, easeIn*1000.0f, easeOut*1000.0f);			
 			break;
 		}
@@ -848,9 +859,11 @@ void ScriptActions::doSetupCamera(const AsciiString& waypoint, Real zoom, Real p
 	Waypoint *way = TheTerrainLogic->getWaypointByName(waypoint);
 	if (way==NULL) return;
 	Coord3D	pos = *way->getLocation();
+	clampCameraWaypointToTerrain( &pos );
 	Waypoint *lookat = TheTerrainLogic->getWaypointByName(lookAtWaypoint); 
 	if (lookat==NULL) return;
 	Coord3D destination = *lookat->getLocation();
+	clampCameraWaypointToTerrain( &destination );
 	TheTacticalView->moveCameraTo(&pos, 0, 0, true, 0.0f, 0.0f);			
 	TheTacticalView->cameraModLookToward(&destination);			
 	TheTacticalView->cameraModFinalPitch(pitch, 0.0f, 0.0f);
@@ -865,6 +878,7 @@ void ScriptActions::doModCameraLookToward(const AsciiString& waypoint)
 	for (Waypoint *way = TheTerrainLogic->getFirstWaypoint(); way; way = way->getNext()) {
 		if (way->getName() == waypoint) {
 			Coord3D destination = *way->getLocation();
+			clampCameraWaypointToTerrain( &destination );
 			TheTacticalView->cameraModLookToward(&destination);			
 			break;
 		}
@@ -879,6 +893,7 @@ void ScriptActions::doModCameraFinalLookToward(const AsciiString& waypoint)
 	for (Waypoint *way = TheTerrainLogic->getFirstWaypoint(); way; way = way->getNext()) {
 		if (way->getName() == waypoint) {
 			Coord3D destination = *way->getLocation();
+			clampCameraWaypointToTerrain( &destination );
 			TheTacticalView->cameraModFinalLookToward(&destination);			
 			break;
 		}
@@ -922,6 +937,7 @@ void ScriptActions::doResetCamera(const AsciiString& waypoint, Real sec, Real ea
 	for (Waypoint *way = TheTerrainLogic->getFirstWaypoint(); way; way = way->getNext()) {
 		if (way->getName() == waypoint) {
 			Coord3D destination = *way->getLocation();
+			clampCameraWaypointToTerrain( &destination );
 			TheTacticalView->resetCamera(&destination, sec*1000, easeIn*1000.0f, easeOut*1000.0f);			
 			break;
 		}
@@ -954,7 +970,9 @@ void ScriptActions::doRotateCameraTowardWaypoint(const AsciiString& waypointName
 {
 	Waypoint *way = TheTerrainLogic->getWaypointByName(waypointName);
 	if (way==NULL) return;
-	TheTacticalView->rotateCameraTowardPosition(way->getLocation(), sec*1000.0f, easeIn*1000.0f, easeOut*1000.0f, reverseRotation);			
+	Coord3D destination = *way->getLocation();
+	clampCameraWaypointToTerrain( &destination );
+	TheTacticalView->rotateCameraTowardPosition(&destination, sec*1000.0f, easeIn*1000.0f, easeOut*1000.0f, reverseRotation);			
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -5316,6 +5334,7 @@ void ScriptActions::doMoveTeamTowardsNearest( const AsciiString& teamName, const
 			}
 		}
 	}
+	DLINK_ITERATOR<Object> iter = team->iterate_TeamMemberList();
 	for( iter = team->iterate_TeamMemberList(); !iter.done(); iter.advance() )
 	{
 		Object *obj = iter.cur();
@@ -6960,6 +6979,21 @@ void ScriptActions::executeAction( ScriptAction *pAction )
 			return;
 		case ScriptAction::SHOW_WEATHER:
 			doWeather(pAction->getParameter(0)->getInt());
+			return;
+		case ScriptAction::ENABLE_DAY_NIGHT_CYCLE:
+			if (TheWritableGlobalData) {
+				TheWritableGlobalData->m_dayNightCycleEnabled = TRUE;
+				if (pAction->getParameter(0)) {
+					Real dur = pAction->getParameter(0)->getReal();
+					if (dur > 0.0f) TheWritableGlobalData->m_dayNightDurationSeconds = dur;
+				}
+			}
+			return;
+		case ScriptAction::DISABLE_DAY_NIGHT_CYCLE:
+			if (TheWritableGlobalData) {
+				TheWritableGlobalData->m_dayNightCycleEnabled = FALSE;
+				if (TheDisplay) TheDisplay->setTimeOfDay(TheGlobalData->m_timeOfDay);
+			}
 			return;
 		case ScriptAction::CAMERA_MOTION_BLUR:
 			doCameraMotionBlur(pAction->getParameter(0)->getInt(), pAction->getParameter(1)->getInt());

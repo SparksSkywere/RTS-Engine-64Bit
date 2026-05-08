@@ -402,8 +402,9 @@ void StructureToppleUpdate::applyCrushingDamage(Real theta)
 	 */
 	Real jcos;
 	Real jsin;
+	Real j;
 //	Coord3D target;
-	for (Real j = m_lastCrushedLocation; j < maxDistance; j += WEAPON_SPACING_PERPENDICULAR) {
+	for (j = m_lastCrushedLocation; j < maxDistance; j += WEAPON_SPACING_PERPENDICULAR) {
 		jcos = j * Cos(toppleAngle);
 		jsin = j * Sin(toppleAngle);
 		doDamageLine(building, wt, jcos, jsin, facingWidth, toppleAngle);

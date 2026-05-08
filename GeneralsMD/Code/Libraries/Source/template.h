@@ -34,11 +34,14 @@
 // Created:    
 //
 //----------------------------------------------------------------------------
+// USAGE: Copy this file, rename it, and replace FILENAME_H with the actual
+//        include-guard symbol matching your file name (e.g. GAMEMEMORY_H).
+//----------------------------------------------------------------------------
 
 #pragma once
 
-#ifndef $label
-#define $label
+#ifndef FILENAME_H
+#define FILENAME_H
 
 
 //----------------------------------------------------------------------------
@@ -74,4 +77,4 @@
 
 
 
-#endif // $label
+#endif // FILENAME_H

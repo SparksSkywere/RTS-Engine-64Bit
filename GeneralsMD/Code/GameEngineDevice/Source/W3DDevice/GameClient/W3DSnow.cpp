@@ -81,9 +81,10 @@ Bool W3DSnowManager::ReAcquireResources(void)
 	if (!TheWeatherSetting->m_snowEnabled)
 		return TRUE;	//no need for resources if snow is disabled.
 
-	if (TheWeatherSetting->m_usePointSprites && DX8Wrapper::Get_Current_Caps()->Support_PointSprites())
+	const DX8Caps *caps = DX8Wrapper::Peek_Current_Caps();
+	if (TheWeatherSetting->m_usePointSprites && caps != NULL && caps->Support_PointSprites())
 	{
-		LPDIRECT3DDEVICE8 m_pDev=DX8Wrapper::_Get_D3D_Device8();
+		LPDIRECT3DDEVICE8 m_pDev=DX8Wrapper::_Get_D3D_Device9();
 
 		DEBUG_ASSERTCRASH(m_pDev, ("Trying to ReAquireResources on W3DSnowManager without device"));
 
@@ -273,7 +274,7 @@ void W3DSnowManager::renderSubBox(RenderInfoClass &rinfo, Int originX, Int origi
 		POINTVERTEX* verts;
 
 		if(m_VertexBufferD3D->Lock(m_dwBase * sizeof(POINTVERTEX), batchSize * sizeof(POINTVERTEX),
-			(unsigned char **) &verts, m_dwBase ? D3DLOCK_NOOVERWRITE : D3DLOCK_DISCARD) != D3D_OK )
+			(void**)&verts, m_dwBase ? D3DLOCK_NOOVERWRITE : D3DLOCK_DISCARD) != D3D_OK )
 			return;	//couldn't lock buffer.
 
 		Int numberInBatch=0;
@@ -318,7 +319,7 @@ flush_particles:
 		if (numberInBatch)
 		{
 			Debug_Statistics::Record_DX8_Polys_And_Vertices(numberInBatch*2,numberInBatch*4,ShaderClass::_PresetOpaqueShader);
-			DX8Wrapper::_Get_D3D_Device8()->DrawPrimitive( D3DPT_POINTLIST, m_dwBase, numberInBatch);
+			DX8Wrapper::_Get_D3D_Device9()->DrawPrimitive( D3DPT_POINTLIST, m_dwBase, numberInBatch);
 			totalPart -= numberInBatch;
 			m_dwBase += numberInBatch;
 		}
@@ -330,7 +331,8 @@ void W3DSnowManager::render(RenderInfoClass &rinfo)
 	if (!TheWeatherSetting->m_snowEnabled || !m_isVisible)
 		return;
 
-	Int usePointSprites = DX8Wrapper::Get_Current_Caps()->Support_PointSprites() && TheWeatherSetting->m_usePointSprites;
+	const DX8Caps *caps = DX8Wrapper::Peek_Current_Caps();
+	Int usePointSprites = (caps != NULL && caps->Support_PointSprites() && TheWeatherSetting->m_usePointSprites);
 
 	//make sure the noise table is powers of 2 in dimensions.
 	WWASSERT(ISPOW2(SNOW_NOISE_X) && ISPOW2(SNOW_NOISE_Y));
@@ -434,8 +436,8 @@ void W3DSnowManager::render(RenderInfoClass &rinfo)
     DX8Wrapper::Set_DX8_Render_State( D3DRS_POINTSCALE_B,  FtoDW(0.00f) );
     DX8Wrapper::Set_DX8_Render_State( D3DRS_POINTSCALE_C,  FtoDW(1.00f) );
 
-	DX8Wrapper::_Get_D3D_Device8()->SetStreamSource( 0, m_VertexBufferD3D, sizeof(POINTVERTEX) );
-    DX8Wrapper::_Get_D3D_Device8()->SetVertexShader( D3DFVF_POINTVERTEX );
+	DX8Wrapper::_Get_D3D_Device9()->SetStreamSource( 0, m_VertexBufferD3D, sizeof(POINTVERTEX) );
+    D3D9_SetVertexShader(DX8Wrapper::_Get_D3D_Device9(), D3DFVF_POINTVERTEX);
 	m_dwBase = SNOW_BUFFER_SIZE;	//start with a new vertex buffer each frame.
 
 	m_leafDim = 45;	//cull boxes that are 20x20 emitters in size. Making them much smaller will result in too many draw calls.

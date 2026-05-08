@@ -209,10 +209,6 @@ SOURCE=.\Source\Common\System\Compression.cpp
 # End Source File
 # Begin Source File
 
-SOURCE=.\Source\Common\System\CopyProtection.cpp
-# End Source File
-# Begin Source File
-
 SOURCE=.\Source\Common\System\CriticalSection.cpp
 # End Source File
 # Begin Source File
@@ -2892,10 +2888,6 @@ SOURCE=.\Include\Common\CommandLine.h
 # End Source File
 # Begin Source File
 
-SOURCE=.\Include\Common\CopyProtection.h
-# End Source File
-# Begin Source File
-
 SOURCE=.\Include\Common\crc.h
 # End Source File
 # Begin Source File
@@ -4449,10 +4441,6 @@ SOURCE=.\Include\GameClient\AnimateWindowManager.h
 # Begin Source File
 
 SOURCE=.\Include\GameClient\CampaignManager.h
-# End Source File
-# Begin Source File
-
-SOURCE=.\Include\GameClient\CDCheck.h
 # End Source File
 # Begin Source File
 

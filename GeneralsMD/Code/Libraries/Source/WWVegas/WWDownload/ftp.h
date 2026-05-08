@@ -55,8 +55,8 @@ class Cftp
 private:
 	friend class CDownload;
 
-	int		m_iCommandSocket;							// Socket for commands
-	int		m_iDataSocket;								// Socket for data
+	SOCKET	m_iCommandSocket;						// Socket for commands
+	SOCKET	m_iDataSocket;							// Socket for data
 
 	struct sockaddr_in m_CommandSockAddr;				// Address for commands
 	struct sockaddr_in m_DataSockAddr;					// Address for data
@@ -75,7 +75,7 @@ private:
 	int		m_iStatus;
 	
 	int		m_sendNewPortStatus;
-	int		m_findStart;
+	time_t	m_findStart;
 
 	int		SendData( char * pData, int iSize );
 	int		RecvData( char * pData, int iSize );

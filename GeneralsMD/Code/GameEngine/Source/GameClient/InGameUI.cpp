@@ -31,6 +31,7 @@
 
 #define DEFINE_SHADOW_NAMES
 
+#include "Common/AudioAffect.h"
 #include "Common/ActionManager.h"
 #include "Common/GameAudio.h"
 #include "Common/GameEngine.h"
@@ -553,6 +554,12 @@ void InGameUI::setMouseCursor(Mouse::MouseCursor c)
 // ------------------------------------------------------------------------------------------------
 SuperweaponInfo* InGameUI::findSWInfo(Int playerIndex, const AsciiString& powerName, ObjectID id, const SpecialPowerTemplate *powerTemplate)
 {
+	if (playerIndex < 0 || playerIndex >= MAX_PLAYER_COUNT)
+	{
+		DEBUG_LOG(("InGameUI::findSWInfo - ignoring invalid player index %d for power '%s'\n", playerIndex, powerName.str()));
+		return NULL;
+	}
+
 	SuperweaponMap::iterator mapIt = m_superweapons[playerIndex].find(powerName);
 	if (mapIt != m_superweapons[playerIndex].end())
 	{
@@ -573,6 +580,11 @@ void InGameUI::addSuperweapon(Int playerIndex, const AsciiString& powerName, Obj
 {
 	if (powerTemplate == NULL)
 		return;
+	if (playerIndex < 0 || playerIndex >= MAX_PLAYER_COUNT)
+	{
+		DEBUG_LOG(("InGameUI::addSuperweapon - refusing invalid player index %d for power '%s'\n", playerIndex, powerName.str()));
+		return;
+	}
 
 	// srj sez: don't allow adding the same superweapon more than once. it can happen. not sure how. (srj)
 	SuperweaponInfo* swInfo = findSWInfo(playerIndex, powerName, id, powerTemplate);
@@ -580,6 +592,11 @@ void InGameUI::addSuperweapon(Int playerIndex, const AsciiString& powerName, Obj
 		return;
 
 	const Player* player = ThePlayerList->getNthPlayer(playerIndex);
+	if (player == NULL)
+	{
+		DEBUG_LOG(("InGameUI::addSuperweapon - no player for index %d while registering power '%s'\n", playerIndex, powerName.str()));
+		return;
+	}
 	Bool hiddenByScience = (powerTemplate->getRequiredScience() != SCIENCE_INVALID) && (player->hasScience(powerTemplate->getRequiredScience()) == false);
 
 #ifndef DO_UNIT_TIMINGS
@@ -608,6 +625,11 @@ void InGameUI::addSuperweapon(Int playerIndex, const AsciiString& powerName, Obj
 Bool InGameUI::removeSuperweapon(Int playerIndex, const AsciiString& powerName, ObjectID id, const SpecialPowerTemplate *powerTemplate)
 {
 	DEBUG_LOG(("Removing superweapon UI timer\n"));
+	if (playerIndex < 0 || playerIndex >= MAX_PLAYER_COUNT)
+	{
+		DEBUG_LOG(("InGameUI::removeSuperweapon - ignoring invalid player index %d for power '%s'\n", playerIndex, powerName.str()));
+		return FALSE;
+	}
 	SuperweaponMap::iterator mapIt = m_superweapons[playerIndex].find(powerName);
 	if (mapIt != m_superweapons[playerIndex].end())
 	{
@@ -915,6 +937,7 @@ InGameUI::InGameUI()
 	//Added By Sadullah Nader
 	//Initializations missing and needed
 	m_currentlyPlayingMovie.clear();
+	m_pausedAudioForMovie = FALSE;
 	m_militarySubtitle = NULL;
 	m_popupMessageData = NULL;
 	m_waypointMode = FALSE;
@@ -1805,6 +1828,7 @@ void InGameUI::update( void )
 
 	GameWindow *moneyWin = TheWindowManager->winGetWindowFromId( NULL, moneyWindowKey );
 	GameWindow *powerWin = TheWindowManager->winGetWindowFromId( NULL, powerWindowKey );
+	static Bool loggedMissingMoneyOrPowerWindow = FALSE;
 //	if( moneyWin == NULL )
 //	{
 //		NameKeyType moneyWindowKey = TheNameKeyGenerator->nameToKey( "ControlBar.wnd:MoneyDisplay" );	
@@ -1817,7 +1841,15 @@ void InGameUI::update( void )
 		moneyPlayer = TheControlBar->getObserverLookAtPlayer();
 	else
 		moneyPlayer = ThePlayerList->getLocalPlayer();
-	if( moneyPlayer)
+	if (moneyWin == NULL || powerWin == NULL)
+	{
+		if (!loggedMissingMoneyOrPowerWindow)
+		{
+			DEBUG_LOG(("InGameUI::update - ControlBar money/power windows are missing (money=%p, power=%p); skipping HUD money update.\n", moneyWin, powerWin));
+			loggedMissingMoneyOrPowerWindow = TRUE;
+		}
+	}
+	else if( moneyPlayer)
 	{
 		Int currentMoney = moneyPlayer->getMoney()->countMoney();
 		if( lastMoney != currentMoney )
@@ -1832,7 +1864,7 @@ void InGameUI::update( void )
 		moneyWin->winHide(FALSE);
 		powerWin->winHide(FALSE);
 	}
-	else
+	else if (moneyWin && powerWin)
 	{
 		moneyWin->winHide(TRUE);
 		powerWin->winHide(TRUE);
@@ -3899,11 +3931,21 @@ void InGameUI::playMovie( const AsciiString& movieName )
 {
 
 	stopMovie();
+	if (TheAudio != NULL && !m_pausedAudioForMovie)
+	{
+		TheAudio->pauseAudio(AudioAffect_All);
+		m_pausedAudioForMovie = TRUE;
+	}
 
 	m_videoStream = TheVideoPlayer->open( movieName );
 
 	if ( m_videoStream == NULL )
 	{
+		if (TheAudio != NULL && m_pausedAudioForMovie)
+		{
+			TheAudio->resumeAudio(AudioAffect_All);
+			m_pausedAudioForMovie = FALSE;
+		}
 		return;
 	}
 
@@ -3936,6 +3978,11 @@ void InGameUI::stopMovie( void )
 	if (!m_currentlyPlayingMovie.isEmpty()) {
 		//TheScriptEngine->notifyOfCompletedVideo(m_currentlyPlayingMovie); // removing sync error source -MDC
 		m_currentlyPlayingMovie = AsciiString::TheEmptyString;
+	}
+	if (TheAudio != NULL && m_pausedAudioForMovie)
+	{
+		TheAudio->resumeAudio(AudioAffect_All);
+		m_pausedAudioForMovie = FALSE;
 	}
 }
 

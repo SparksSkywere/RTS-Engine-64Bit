@@ -58,9 +58,12 @@ void LanguageFilter::init() {
 		return;
 	}
 
-	wchar_t word[128];
-	while (readWord(file1, word)) {
-		Int wordLen = wcslen(word);
+	WideChar word[128];
+	while (readWord(file1, (UnsignedShort *)word)) {
+		Int wordLen = 0;
+		while (word[wordLen] != 0 && wordLen < 128) {
+			++wordLen;
+		}
 		if (wordLen == 0) {
 			continue;
 		}

@@ -423,7 +423,7 @@ void ControlBar::populateCommand( Object *obj )
 											//All purchase sciences specify a single science.
 											if( command->getScienceVec().empty() )
 											{
-												DEBUG_CRASH( ("Commandbutton %s is a purchase science button without any science! Please add it.", command->getName().str() ) );
+												DEBUG_LOG(("Commandbutton %s is a purchase science button without any science; skipping it.\n", command->getName().str()));
 											}
 											else if( command->getScienceVec()[0] == science )
 											{
@@ -442,7 +442,7 @@ void ControlBar::populateCommand( Object *obj )
 											//All purchase sciences specify a single science.
 											if( command->getScienceVec().empty() )
 											{
-												DEBUG_CRASH( ("Commandbutton %s is a purchase science button without any science! Please add it.", command->getName().str() ) );
+												DEBUG_LOG(("Commandbutton %s is a purchase science button without any science; skipping it.\n", command->getName().str()));
 											}
 											else if( command->getScienceVec()[0] == science )
 											{
@@ -461,7 +461,7 @@ void ControlBar::populateCommand( Object *obj )
 											//All purchase sciences specify a single science.
 											if( command->getScienceVec().empty() )
 											{
-												DEBUG_CRASH( ("Commandbutton %s is a purchase science button without any science! Please add it.", command->getName().str() ) );
+												DEBUG_LOG(("Commandbutton %s is a purchase science button without any science; skipping it.\n", command->getName().str()));
 											}
 											else if( command->getScienceVec()[0] == science )
 											{
@@ -794,14 +794,19 @@ void ControlBar::updateContextCommand( void )
 			{
 				static NameKeyType winID = TheNameKeyGenerator->nameToKey( "ControlBar.wnd:ButtonQueue01" );
 				GameWindow *win = TheWindowManager->winGetWindowFromId( m_contextParent[ CP_BUILD_QUEUE ], winID );
-				
-				DEBUG_ASSERTCRASH( win, ("updateContextCommand: Unable to find first build queue button\n") );
-				//				UnicodeString text;
-				//
-				//				text.format( L"%.0f%%", produce->getPercentComplete() );
-				//				GadgetButtonSetText( win, text );
-				
-				GadgetButtonDrawInverseClock(win,produce->getPercentComplete(), m_buildUpClockColor);
+				if (win == NULL)
+				{
+					DEBUG_LOG(("ControlBar::updateContextCommand - missing first build queue button; skipping queue clock update.\n"));
+				}
+				else
+				{
+					//				UnicodeString text;
+					//
+					//				text.format( L"%.0f%%", produce->getPercentComplete() );
+					//				GadgetButtonSetText( win, text );
+					
+					GadgetButtonDrawInverseClock(win,produce->getPercentComplete(), m_buildUpClockColor);
+				}
 
 			}  // end if
 
@@ -891,11 +896,12 @@ void ControlBar::updateContextCommand( void )
 		{
 
 			// sanity, check like commands should have windows that are check like as well
-			DEBUG_ASSERTCRASH( BitTest( win->winGetStatus(), WIN_STATUS_CHECK_LIKE ),	
-												 ("updateContextCommand: Error, gadget window for command '%s' is not check-like!\n",
-												 command->getName().str()) );
-
-			if( availability == COMMAND_ACTIVE )
+			if (!BitTest( win->winGetStatus(), WIN_STATUS_CHECK_LIKE ))
+			{
+				DEBUG_LOG(("ControlBar::updateContextCommand - command '%s' is CHECK_LIKE but its window is not check-like; skipping visual check sync.\n",
+					command->getName().str()));
+			}
+			else if( availability == COMMAND_ACTIVE )
 				GadgetCheckLikeButtonSetVisualCheck( win, TRUE );
 			else
 				GadgetCheckLikeButtonSetVisualCheck( win, FALSE );
@@ -1156,9 +1162,12 @@ CommandAvailability ControlBar::getCommandAvailability( const CommandButton *com
 
 			dozerAI = obj->getAIUpdateInterface()->getDozerAIInterface();
 
-			DEBUG_ASSERTCRASH( dozerAI != NULL, ("Something KINDOF_DOZER must have a Dozer-like AIUpdate") );
 			if( dozerAI == NULL )
+			{
+				DEBUG_LOG(("ControlBar::getCommandAvailability - dozer '%s' is missing a DozerAIInterface; restricting construct command '%s'.\n",
+					obj->getTemplate()->getName().str(), command->getName().str()));
 				return COMMAND_RESTRICTED;
+			}
 
 			// if building anything at all right now we can't build another
 			if( dozerAI->isTaskPending( DOZER_TASK_BUILD ) == TRUE )
@@ -1260,7 +1269,8 @@ CommandAvailability ControlBar::getCommandAvailability( const CommandButton *com
 			// no production update, can't possibly do this command
 			if( pu == NULL )
 			{
-				DEBUG_CRASH(("Objects that have Object-Level Upgrades must also have ProductionUpdate. Just cuz."));
+				DEBUG_LOG(("ControlBar::getCommandAvailability - object '%s' has object-upgrade command '%s' but no ProductionUpdate; restricting command.\n",
+					obj->getTemplate()->getName().str(), command->getName().str()));
 				return COMMAND_RESTRICTED;
 			}
 
@@ -1411,19 +1421,24 @@ CommandAvailability ControlBar::getCommandAvailability( const CommandButton *com
 		case GUI_COMMAND_SPECIAL_POWER_CONSTRUCT:
 		case GUI_COMMAND_SPECIAL_POWER_CONSTRUCT_FROM_SHORTCUT:
 		{
-			// sanity
-			DEBUG_ASSERTCRASH( command->getSpecialPowerTemplate() != NULL,
-												 ("The special power in the command '%s' is NULL\n", command->getName().str()) );
+			const SpecialPowerTemplate *specialPowerTemplate = command->getSpecialPowerTemplate();
+			if( specialPowerTemplate == NULL )
+			{
+				DEBUG_LOG(("ControlBarCommand::getCommandAvailability - command '%s' has no SpecialPower template; hiding it\n",
+					command->getName().str()));
+				return COMMAND_HIDDEN;
+			}
 			// get special power module from the object to execute it
-			SpecialPowerModuleInterface *mod = obj->getSpecialPowerModule( command->getSpecialPowerTemplate() );
+			SpecialPowerModuleInterface *mod = obj->getSpecialPowerModule( specialPowerTemplate );
 
 			if( mod == NULL )
 			{
-				// sanity ... we must have a module for the special power, if we don't somebody probably
-				// forgot to put it in the object
-				DEBUG_CRASH(( "Object %s does not contain special power module (%s) to execute.  Did you forget to add it to the object INI?\n",
-											obj->getTemplate()->getName().str(), command->getSpecialPowerTemplate()->getName().str() ));
-			} 
+				// Some legacy command/data combinations expose buttons for powers the object does not actually own.
+				// Hide those commands rather than halting the match with a debug crash.
+				DEBUG_LOG(("ControlBarCommand::getCommandAvailability - object %s does not contain special power module %s for command %s; hiding it\n",
+					obj->getTemplate()->getName().str(), specialPowerTemplate->getName().str(), command->getName().str()));
+				return COMMAND_HIDDEN;
+			}
 			else if( mod->isReady() == FALSE )
 			{
 				Int percent =  mod->getPercentReady() * 100;
@@ -1473,12 +1488,12 @@ CommandAvailability ControlBar::getCommandAvailability( const CommandButton *com
 		{
 			// ask the ai which weapon is in the current slot
 			const Weapon* w = obj->getWeaponInWeaponSlot( command->getWeaponSlot() );
-
-			DEBUG_ASSERTCRASH( w, ("Unit %s's CommandButton %s is trying to access weaponslot %d, but doesn't have a weapon there in its FactionUnit ini entry.", 
-				obj->getTemplate()->getName().str(), command->getName().str(), (Int)command->getWeaponSlot() ) );
-			
 			if( w == NULL)
+			{
+				DEBUG_LOG(("ControlBar::getCommandAvailability - unit '%s' command '%s' references missing weaponslot %d; restricting command.\n",
+					obj->getTemplate()->getName().str(), command->getName().str(), (Int)command->getWeaponSlot()));
 				return COMMAND_RESTRICTED;
+			}
 
 			const DrawableList *selected = TheInGameUI->getAllSelectedDrawables();
 			for( DrawableListCIt it = selected->begin(); it != selected->end(); ++it )
@@ -1538,4 +1553,5 @@ CommandAvailability ControlBar::getCommandAvailability( const CommandButton *com
 	return COMMAND_AVAILABLE;
 
 }  // end getCommandAvailability
+
 

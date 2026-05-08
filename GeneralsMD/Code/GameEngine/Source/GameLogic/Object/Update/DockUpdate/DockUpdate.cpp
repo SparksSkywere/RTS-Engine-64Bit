@@ -145,8 +145,9 @@ Bool DockUpdate::reserveApproachPosition( Object* docker, Coord3D *position, Int
 		return FALSE;
 
 	ObjectID dockerID = docker->getID();
+	Int positionIndex;
 
-	for( Int positionIndex = 0; positionIndex < m_approachPositionOwners.size(); ++positionIndex )
+	for( positionIndex = 0; positionIndex < m_approachPositionOwners.size(); ++positionIndex )
 	{
 		if( m_approachPositionOwners[positionIndex] == dockerID )
 		{
@@ -581,9 +582,10 @@ void DockUpdate::xfer( Xfer *xfer )
 
 	// approach positions
 	Int vectorSize = m_approachPositions.size();
+	Int vectorIndex;
 	xfer->xferInt( &vectorSize );
 	m_approachPositions.resize(vectorSize);
-	for( Int vectorIndex = 0; vectorIndex < vectorSize; ++vectorIndex )
+	for( vectorIndex = 0; vectorIndex < vectorSize; ++vectorIndex )
 	{
 		// Okay, this is cool.  On save, the size and a bunch of coords will be written.
 		// on load, vectorSize will be at 0 from the .size, but will then get set

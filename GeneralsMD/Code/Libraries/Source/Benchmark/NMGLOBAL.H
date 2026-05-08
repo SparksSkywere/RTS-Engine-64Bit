@@ -56,7 +56,8 @@
 ** constant used as the divisor to determine seconds is
 ** CLOCKS_PER_SEC.  This is the default in most cases.
 */
-/* #define CLOCKWCPS */
+/* Use standard clock() timing for modern x64 builds. */
+#define CLOCKWCPS
 
 /*
 ** Define CLOCKWCT if you are using the clock() routine and the
@@ -76,7 +77,7 @@
 ** Define WIN31TIMER to user the timing routines in TOOLHELP.DLL.
 ** Gets accuracy down to the millisecond.
 */
-#define WIN31TIMER
+/* #define WIN31TIMER */
 
 /* +++ MISCELLANEOUS +++ */
 

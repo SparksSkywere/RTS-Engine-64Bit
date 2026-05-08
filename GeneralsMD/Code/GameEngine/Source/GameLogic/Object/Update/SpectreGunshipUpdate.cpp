@@ -1,4 +1,4 @@
-/*
+﻿/*
 **	Command & Conquer Generals Zero Hour(tm)
 **	Copyright 2025 Electronic Arts Inc.
 **
@@ -399,7 +399,7 @@ UpdateSleepTime SpectreGunshipUpdate::update()
   //          | \      /                                        
   //  perigee |  \   /                                        
   //          |   */ declination                                          
-  //          |  / \                                           
+  //          |  / \
   //          v/    * m_satelliteposition                                         
   //          *                                                
   //          |                                              

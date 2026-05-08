@@ -39,7 +39,6 @@
 #include "intersec.h"
 #include "camera.h"
 #include "scene.h"
-#include "intersec.inl"
 
 
 //////////////////////////////////////////////////////////////////////

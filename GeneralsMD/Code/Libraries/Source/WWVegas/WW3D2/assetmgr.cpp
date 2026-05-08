@@ -320,7 +320,7 @@ static void Log_Textures(bool inited,unsigned& total_count, unsigned& total_mem)
 		D3DSURFACE_DESC desc;
 		IDirect3DTexture9* d3d_texture=tex->Peek_D3D_Texture();
 		if (!d3d_texture) continue;
-		DX8_ErrorCode(d3d_texture->GetLevelDesc(0,&desc));
+		DX9_ErrorCode(d3d_texture->GetLevelDesc(0,&desc));
 
 		StringClass tex_format="Unknown";
 		switch (desc.Format) {
@@ -541,7 +541,8 @@ void WW3DAssetManager::Free_Assets_With_Exclusion_List(const DynamicVectorClass<
 	exclude_array.Set_Growth_Step(DEFAULT_EXCLUDE_ARRAY_SIZE);
 
 	// iterate the array of prototypes saving each one that should be excluded from deletion
-	for (int i=0; i<Prototypes.Count(); i++) {
+	int i;
+	for (i=0; i<Prototypes.Count(); i++) {
 
 		PrototypeClass * proto = Prototypes[i];
 		if (proto != NULL) {		
@@ -565,7 +566,6 @@ void WW3DAssetManager::Free_Assets_With_Exclusion_List(const DynamicVectorClass<
 	memset(PrototypeHashTable,0,sizeof(PrototypeClass *) * PROTOTYPE_HASH_TABLE_SIZE);	
 
 	// re-add the prototypes that we saved
-	int i;
 	for (i=0; i<exclude_array.Count(); i++) {
 		Add_Prototype(exclude_array[i]);
 	}
@@ -812,7 +812,7 @@ RenderObjClass * WW3DAssetManager::Create_Render_Obj(const char * name)
 char filename [MAX_PATH];
 const char *mesh_name = ::strchr (name, '.');
 		if (mesh_name != NULL) {
-			::lstrcpyn (filename, name, ((int)mesh_name) - ((int)name) + 1);
+			::lstrcpyn (filename, name, int(mesh_name - name) + 1);
 			::lstrcat (filename, ".w3d");
 		} else {
 			sprintf( filename, "%s.w3d", name);

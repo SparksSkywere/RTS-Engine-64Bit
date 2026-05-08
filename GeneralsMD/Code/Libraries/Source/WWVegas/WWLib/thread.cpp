@@ -81,9 +81,14 @@ void ThreadClass::Execute()
 		// assert(0);
 		return;
 	#else
-		handle=_beginthread(&Internal_Thread_Function,0,this);
-		SetThreadPriority((HANDLE)handle,THREAD_PRIORITY_NORMAL+thread_priority);
-		WWDEBUG_SAY(("ThreadClass::Execute: Started thread %s, thread ID is %X\n", ThreadName, handle));
+		handle = _beginthread(&Internal_Thread_Function, 0, this);
+		WWASSERT(handle != static_cast<uintptr_t>(-1));
+		if (handle != 0 && handle != static_cast<uintptr_t>(-1)) {
+			SetThreadPriority(reinterpret_cast<HANDLE>(handle), THREAD_PRIORITY_NORMAL + thread_priority);
+			WWDEBUG_SAY(("ThreadClass::Execute: Started thread %s, thread handle is %p\n", ThreadName, reinterpret_cast<void *>(handle)));
+		} else {
+			handle = 0;
+		}
 	#endif
 }
 
@@ -94,7 +99,7 @@ void ThreadClass::Set_Priority(int priority)
 		return;
 	#else
 		thread_priority=priority;
-		if (handle) SetThreadPriority((HANDLE)handle,THREAD_PRIORITY_NORMAL+thread_priority);
+		if (handle) SetThreadPriority(reinterpret_cast<HANDLE>(handle), THREAD_PRIORITY_NORMAL + thread_priority);
 	#endif
 }
 
@@ -108,7 +113,7 @@ void ThreadClass::Stop(unsigned ms)
 		unsigned time=TIMEGETTIME();
 		while (handle) {
 			if ((TIMEGETTIME()-time)>ms) {
-				int res=TerminateThread((HANDLE)handle,0);
+				int res=TerminateThread(reinterpret_cast<HANDLE>(handle),0);
 				res;	// just to silence compiler warnings
 				WWASSERT(res);	// Thread still not killed!
 				handle=0;

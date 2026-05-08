@@ -768,9 +768,10 @@ void GameInfo::adjustSlotsForMap()
 		// get the number of players allowed from the map.
 		Int numPlayers = md->m_numPlayers;
 		Int numPlayerSlots = 0;
+		Int i;
 
 		// first get the number of occupied slots.
-		for (Int i = 0; i < MAX_SLOTS; ++i)
+		for (i = 0; i < MAX_SLOTS; ++i)
 		{
 			GameSlot *tempSlot = getSlot(i);
 			if (tempSlot->isOccupied())

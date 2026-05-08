@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="DebugW3D|x64">
@@ -82,28 +82,33 @@
     <_ProjectFileVersion>17.0.35913.81</_ProjectFileVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Internal|x64'">
-    <OutDir>.\Main\Internal\</OutDir>
+    <OutDir>..\Run\</OutDir>
     <IntDir>.\Main\Internal\</IntDir>
+    <TargetName>RTSI</TargetName>
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>.\Main\Release\</OutDir>
+    <OutDir>..\Run\</OutDir>
     <IntDir>.\Main\Release\</IntDir>
+    <TargetName>Generals</TargetName>
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">
-    <OutDir>.\Main\Profile\</OutDir>
+    <OutDir>..\Run\</OutDir>
     <IntDir>.\Main\Profile\</IntDir>
+    <TargetName>RTSP</TargetName>
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <OutDir>.\Main\Debug\</OutDir>
+    <OutDir>..\Run\</OutDir>
     <IntDir>.\Main\Debug\</IntDir>
+    <TargetName>RTSD</TargetName>
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugW3D|x64'">
-    <OutDir>.\Main\DebugW3D\</OutDir>
+    <OutDir>..\Run\</OutDir>
     <IntDir>.\Main\DebugW3D\</IntDir>
+    <TargetName>RTSDW3D</TargetName>
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Internal|x64'">
@@ -111,7 +116,7 @@
       <Optimization>MaxSpeed</Optimization>
       <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
       <AdditionalIncludeDirectories>Main;Libraries\\Include;GameEngine\Include;gameenginedevice\Include;Libraries\Source\WWVegas;Libraries\Source\WWVegas\WWLib;Libraries\Source\WWVegas\WWMath;Libraries\Source\WWVegas\WWDebug;Libraries\Source\WWVegas\WWSaveLoad;Libraries\Source\WWVegas\WW3D2;Libraries\Include\Granny;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>NDEBUG;_INTERNAL;WIN32;_WINDOWS;_SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_INTERNAL;WIN64;_WIN64;_WINDOWS;_SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -131,15 +136,15 @@
     </PreBuildEvent>
     <Link>
       <AdditionalOptions>/FIXED:NO %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalDependencies>dxguid.lib;dinput8.lib;d3d9.lib;winmm.lib;dsound.lib;wsock32.lib;ws2_32.lib;imm32.lib;wininet.lib;ole32.lib;oleaut32.lib;uuid.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <OutputFile>..\Run\RTSI.exe</OutputFile>
+      <AdditionalDependencies>dxguid.lib;dinput8.lib;d3d9.lib;d3dx9.lib;vfw32.lib;comsuppw.lib;UniSpySDK.lib;uscommon.lib;uspeer.lib;usqr2.lib;usserverbrowsing.lib;ushttp.lib;usgp.lib;usnatneg.lib;uspinger.lib;uspt.lib;uschat.lib;uscdkey.lib;usstats.lib;uswebservice.lib;usgt2.lib;ussake.lib;ussc.lib;usvoice2.lib;usd2g.lib;usbrigades.lib;gsm.lib;speex.lib;winmm.lib;dsound.lib;wsock32.lib;ws2_32.lib;imm32.lib;wininet.lib;ole32.lib;oleaut32.lib;uuid.lib;GameEngineInternal.lib;GameEngineDeviceInternal.lib;OpenAL32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <AdditionalLibraryDirectories>Lib;GameEngine\Lib;GameEngineDevice\Lib;Libraries\DirectX\Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Lib\x64;$(WindowsSdkDir)Lib\$(WindowsTargetPlatformVersion)\um\x64;Lib;GameEngine\Lib;GameEngineDevice\Lib;Libraries\DirectX\Lib;$(ProjectDir)..\..\Dependencies\Modern\openal-soft\build\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>libc.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <ProgramDatabaseFile>..\Run\RTSI.pdb</ProgramDatabaseFile>
+      <ProgramDatabaseFile>$(OutDir)$(TargetName).pdb</ProgramDatabaseFile>
       <GenerateMapFile>true</GenerateMapFile>
-      <MapFileName>..\Run\RTSI.map</MapFileName>
+      <MapFileName>$(OutDir)$(TargetName).map</MapFileName>
       <SubSystem>Windows</SubSystem>
       <TargetMachine>MachineX64</TargetMachine>
     </Link>
@@ -161,7 +166,7 @@
       <Optimization>MaxSpeed</Optimization>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <AdditionalIncludeDirectories>Main;Libraries\\Include;GameEngine\Include;gameenginedevice\Include;Libraries\Source\WWVegas;Libraries\Source\WWVegas\WWLib;Libraries\Source\WWVegas\WWMath;Libraries\Source\WWVegas\WWDebug;Libraries\Source\WWVegas\WWSaveLoad;Libraries\Source\WWVegas\WW3D2;Libraries\Include\Granny;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>IG_DEBUG_STACKTRACE;NDEBUG;_RELEASE;WIN32;_WINDOWS;_SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>IG_DEBUG_STACKTRACE;NDEBUG;_RELEASE;WIN64;_WIN64;_WINDOWS;_SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -180,15 +185,15 @@
       <Command>"$(ProjectDir)GenerateVersion.bat"</Command>
     </PreBuildEvent>
     <Link>
-      <AdditionalDependencies>dxguid.lib;dinput8.lib;d3d9.lib;winmm.lib;dsound.lib;wsock32.lib;ws2_32.lib;imm32.lib;wininet.lib;ole32.lib;oleaut32.lib;uuid.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <OutputFile>..\Run\RTS.exe</OutputFile>
+      <AdditionalDependencies>dxguid.lib;dinput8.lib;d3d9.lib;d3dx9.lib;vfw32.lib;comsuppw.lib;UniSpySDK.lib;uscommon.lib;uspeer.lib;usqr2.lib;usserverbrowsing.lib;ushttp.lib;usgp.lib;usnatneg.lib;uspinger.lib;uspt.lib;uschat.lib;uscdkey.lib;usstats.lib;uswebservice.lib;usgt2.lib;ussake.lib;ussc.lib;usvoice2.lib;usd2g.lib;usbrigades.lib;gsm.lib;speex.lib;winmm.lib;dsound.lib;wsock32.lib;ws2_32.lib;imm32.lib;wininet.lib;ole32.lib;oleaut32.lib;uuid.lib;GameEngine.lib;GameEngineDevice.lib;OpenAL32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <AdditionalLibraryDirectories>Lib;GameEngine\Lib;GameEngineDevice\Lib;Libraries\DirectX\Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Lib\x64;$(WindowsSdkDir)Lib\$(WindowsTargetPlatformVersion)\um\x64;Lib;GameEngine\Lib;GameEngineDevice\Lib;Libraries\DirectX\Lib;$(ProjectDir)..\..\Dependencies\Modern\openal-soft\build\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>libc.lib;debug.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <ProgramDatabaseFile>..\Run\RTS.pdb</ProgramDatabaseFile>
+      <ProgramDatabaseFile>$(OutDir)$(TargetName).pdb</ProgramDatabaseFile>
       <GenerateMapFile>true</GenerateMapFile>
-      <MapFileName>..\Run\RTS.map</MapFileName>
+      <MapFileName>$(OutDir)$(TargetName).map</MapFileName>
       <SubSystem>Windows</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
@@ -209,11 +214,10 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">
     <ClCompile>
-      <AdditionalOptions>/Gh  %(AdditionalOptions)</AdditionalOptions>
       <Optimization>MaxSpeed</Optimization>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <AdditionalIncludeDirectories>Main;Libraries\\Include;GameEngine\Include;gameenginedevice\Include;Libraries\Source\WWVegas;Libraries\Source\WWVegas\WWLib;Libraries\Source\WWVegas\WWMath;Libraries\Source\WWVegas\WWDebug;Libraries\Source\WWVegas\WWSaveLoad;Libraries\Source\WWVegas\WW3D2;Libraries\Include\Granny;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>IG_DEBUG_STACKTRACE;NDEBUG;_RELEASE;WIN32;_WINDOWS;_PROFILE;_SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>IG_DEBUG_STACKTRACE;NDEBUG;_RELEASE;WIN64;_WIN64;_WINDOWS;_PROFILE;_SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -232,15 +236,15 @@
       <Command>"$(ProjectDir)GenerateVersion.bat"</Command>
     </PreBuildEvent>
     <Link>
-      <AdditionalDependencies>dxguid.lib;dinput8.lib;d3d9.lib;winmm.lib;dsound.lib;wsock32.lib;ws2_32.lib;imm32.lib;wininet.lib;ole32.lib;oleaut32.lib;uuid.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <OutputFile>..\Run\RTSP.exe</OutputFile>
+      <AdditionalDependencies>dxguid.lib;dinput8.lib;d3d9.lib;d3dx9.lib;vfw32.lib;comsuppw.lib;UniSpySDK.lib;uscommon.lib;uspeer.lib;usqr2.lib;usserverbrowsing.lib;ushttp.lib;usgp.lib;usnatneg.lib;uspinger.lib;uspt.lib;uschat.lib;uscdkey.lib;usstats.lib;uswebservice.lib;usgt2.lib;ussake.lib;ussc.lib;usvoice2.lib;usd2g.lib;usbrigades.lib;gsm.lib;speex.lib;winmm.lib;dsound.lib;wsock32.lib;ws2_32.lib;imm32.lib;wininet.lib;ole32.lib;oleaut32.lib;uuid.lib;GameEngineProfile.lib;GameEngineDeviceProfile.lib;OpenAL32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <AdditionalLibraryDirectories>Lib;GameEngine\Lib;GameEngineDevice\Lib;Libraries\DirectX\Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Lib\x64;$(WindowsSdkDir)Lib\$(WindowsTargetPlatformVersion)\um\x64;Lib;GameEngine\Lib;GameEngineDevice\Lib;Libraries\DirectX\Lib;$(ProjectDir)..\..\Dependencies\Modern\openal-soft\build\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>libc.lib;gameengine.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <ProgramDatabaseFile>..\Run\RTSP.pdb</ProgramDatabaseFile>
+      <ProgramDatabaseFile>$(OutDir)$(TargetName).pdb</ProgramDatabaseFile>
       <GenerateMapFile>true</GenerateMapFile>
-      <MapFileName>..\Run\RTSP.map</MapFileName>
+      <MapFileName>$(OutDir)$(TargetName).map</MapFileName>
       <SubSystem>Windows</SubSystem>
       <TargetMachine>MachineX64</TargetMachine>
     </Link>
@@ -261,7 +265,7 @@
     <ClCompile>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>Main;Libraries\\Include;GameEngine\Include;gameenginedevice\Include;Libraries\Source\WWVegas;Libraries\Source\WWVegas\WWLib;Libraries\Source\WWVegas\WWMath;Libraries\Source\WWVegas\WWDebug;Libraries\Source\WWVegas\WWSaveLoad;Libraries\Source\WWVegas\WW3D2;Libraries\Include\Granny;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>_DEBUG;WIN32;_WINDOWS;BROWSER_DEBUG;_SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;WIN64;_WIN64;_WINDOWS;BROWSER_DEBUG;_SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <PrecompiledHeader />
@@ -279,15 +283,15 @@
       <Command>"$(ProjectDir)GenerateVersion.bat"</Command>
     </PreBuildEvent>
     <Link>
-      <AdditionalDependencies>dxguid.lib;dinput8.lib;d3d9.lib;winmm.lib;dsound.lib;wsock32.lib;ws2_32.lib;imm32.lib;wininet.lib;ole32.lib;oleaut32.lib;uuid.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <OutputFile>..\Run\RTSD.exe</OutputFile>
+      <AdditionalDependencies>dxguid.lib;dinput8.lib;d3d9.lib;d3dx9.lib;vfw32.lib;comsuppw.lib;UniSpySDK.lib;uscommon.lib;uspeer.lib;usqr2.lib;usserverbrowsing.lib;ushttp.lib;usgp.lib;usnatneg.lib;uspinger.lib;uspt.lib;uschat.lib;uscdkey.lib;usstats.lib;uswebservice.lib;usgt2.lib;ussake.lib;ussc.lib;usvoice2.lib;usd2g.lib;usbrigades.lib;gsm.lib;speex.lib;winmm.lib;dsound.lib;wsock32.lib;ws2_32.lib;imm32.lib;wininet.lib;ole32.lib;oleaut32.lib;uuid.lib;OpenAL32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <AdditionalLibraryDirectories>Lib;GameEngine\Lib;GameEngineDevice\Lib;Libraries\DirectX\Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Lib\x64;$(WindowsSdkDir)Lib\$(WindowsTargetPlatformVersion)\um\x64;Lib;GameEngine\Lib;GameEngineDevice\Lib;Libraries\DirectX\Lib;$(ProjectDir)..\..\Dependencies\Modern\openal-soft\build\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>libcd.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <ProgramDatabaseFile>..\Run\RTSD.pdb</ProgramDatabaseFile>
+      <ProgramDatabaseFile>$(OutDir)$(TargetName).pdb</ProgramDatabaseFile>
       <GenerateMapFile>true</GenerateMapFile>
-      <MapFileName>..\Run\RTSD.map</MapFileName>
+      <MapFileName>$(OutDir)$(TargetName).map</MapFileName>
       <SubSystem>Windows</SubSystem>
       <TargetMachine>MachineX64</TargetMachine>
     </Link>
@@ -308,7 +312,7 @@
     <ClCompile>
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>Main;Libraries\\Include;GameEngine\Include;gameenginedevice\Include;Libraries\Source\WWVegas;Libraries\Source\WWVegas\WWLib;Libraries\Source\WWVegas\WWMath;Libraries\Source\WWVegas\WWDebug;Libraries\Source\WWVegas\WWSaveLoad;Libraries\Source\WWVegas\WW3D2;Libraries\Include\Granny;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>_DEBUG;WIN32;_WINDOWS;_SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;WIN64;_WIN64;_WINDOWS;_SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <PrecompiledHeader />
@@ -326,15 +330,15 @@
       <Command>"$(ProjectDir)GenerateVersion.bat"</Command>
     </PreBuildEvent>
     <Link>
-      <AdditionalDependencies>dxguid.lib;dinput8.lib;d3d9.lib;winmm.lib;dsound.lib;wsock32.lib;ws2_32.lib;imm32.lib;wininet.lib;ole32.lib;oleaut32.lib;uuid.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <OutputFile>..\Run\RTSDW3D.exe</OutputFile>
+      <AdditionalDependencies>dxguid.lib;dinput8.lib;d3d9.lib;d3dx9.lib;vfw32.lib;comsuppw.lib;UniSpySDK.lib;uscommon.lib;uspeer.lib;usqr2.lib;usserverbrowsing.lib;ushttp.lib;usgp.lib;usnatneg.lib;uspinger.lib;uspt.lib;uschat.lib;uscdkey.lib;usstats.lib;uswebservice.lib;usgt2.lib;ussake.lib;ussc.lib;usvoice2.lib;usd2g.lib;usbrigades.lib;gsm.lib;speex.lib;winmm.lib;dsound.lib;wsock32.lib;ws2_32.lib;imm32.lib;wininet.lib;ole32.lib;oleaut32.lib;uuid.lib;OpenAL32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
-      <AdditionalLibraryDirectories>Lib;GameEngine\Lib;GameEngineDevice\Lib;Libraries\DirectX\Lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\Program Files (x86)\Microsoft DirectX SDK (June 2010)\Lib\x64;$(WindowsSdkDir)Lib\$(WindowsTargetPlatformVersion)\um\x64;Lib;GameEngine\Lib;GameEngineDevice\Lib;Libraries\DirectX\Lib;$(ProjectDir)..\..\Dependencies\Modern\openal-soft\build\Release;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>libcd.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <ProgramDatabaseFile>..\Run\RTSDW3D.pdb</ProgramDatabaseFile>
+      <ProgramDatabaseFile>$(OutDir)$(TargetName).pdb</ProgramDatabaseFile>
       <GenerateMapFile>true</GenerateMapFile>
-      <MapFileName>..\Run\RTSDW3D.map</MapFileName>
+      <MapFileName>$(OutDir)$(TargetName).map</MapFileName>
       <SubSystem>Windows</SubSystem>
       <TargetMachine>MachineX64</TargetMachine>
     </Link>
@@ -605,7 +609,7 @@
     <None Include="Main\RTS.sln" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="Main\Generals.ico" />
+    <Image Include="Main\GeneralsZH.ico" />
     <Image Include="Main\Install_Final.bmp" />
   </ItemGroup>
   <ItemGroup>

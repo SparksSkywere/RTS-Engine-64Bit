@@ -22,7 +22,7 @@
 // $Revision: #1 $
 // $DateTime: 2003/07/03 11:55:26 $
 //
-// ©2003 Electronic Arts
+// ï¿½2003 Electronic Arts
 //
 // Unhandled exception handler
 //////////////////////////////////////////////////////////////////////////////
@@ -391,7 +391,12 @@ LONG __stdcall DebugExceptionhandler::ExceptionFilter(struct _EXCEPTION_POINTERS
   dbg.m_stackWalk.StackWalk(sig,pExPtrs->ContextRecord);
   dbg << sig << "\n";
 
+  // x64 uses RIP (64-bit instruction pointer); x86 used EIP (32-bit)
+#ifdef _WIN64
+  dbg << "Bytes around RIP:" << Debug::MemDump::Char(((char *)(pExPtrs->ContextRecord->Rip))-32,80);
+#else
   dbg << "Bytes around EIP:" << Debug::MemDump::Char(((char *)(pExPtrs->ContextRecord->Eip))-32,80);
+#endif
 
   dbg.FlushOutput();
 

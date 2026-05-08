@@ -22,7 +22,7 @@
 // $Revision: #4 $
 // $DateTime: 2003/08/14 13:43:29 $
 //
-// ©2003 Electronic Arts
+// ï¿½2003 Electronic Arts
 //
 // Profiling module
 //////////////////////////////////////////////////////////////////////////////
@@ -73,6 +73,88 @@ public:
 
     \param range name of range to record, ==NULL for "frame"
   */
+#if defined(_WIN64)
+  static inline void StartRange(const char *range=0) { (void)range; }
+
+  /**
+    \brief Appends profile data to the last recorded frame
+    of the given range.
+
+    \param range name of range to record, ==NULL for "frame"
+  */
+  static inline void AppendRange(const char *range=0) { (void)range; }
+  
+  /**
+    \brief Stops range recording.
+
+    \note After this call the recorded range data will be available
+    as a new range frame.
+
+    \param range name of range to record, ==NULL for "frame"
+  */
+  static inline void StopRange(const char *range=0) { (void)range; }
+
+  /**
+    \brief Determines if any range recording is enabled or not.
+
+    \return true if range profiling is enabled, false if not
+  */
+  static inline bool IsEnabled(void) { return false; }
+
+  /**
+    \brief Determines the number of known (recorded) range frames.
+
+    Note that if function level profiling is enabled then the number
+    of recorded high level frames is the same as the number of recorded
+    function level frames.
+
+    \return number of recorded range frames
+  */
+  static inline unsigned GetFrameCount(void) { return 0; }
+
+  /**
+    \brief Determines the range name of a recorded range frame.
+
+    \note A unique number will be added to the frame name, separated by
+    a ':', e.g. 'frame:3'
+
+    \param frame number of recorded frame
+    \return range name
+  */
+  static inline const char *GetFrameName(unsigned frame) { (void)frame; return ""; }
+
+  /**
+    \brief Resets all 'total' counter values to 0.
+
+    This function does not change any recorded frames.
+  */
+  static inline void ClearTotals(void) {}
+
+  /**
+    \brief Determines number of CPU clock cycles per second.
+
+    \note This value is cached internally so this function is
+    quite fast.
+
+    \return number of CPU clock cycles per second
+  */
+  static inline _int64 GetClockCyclesPerSecond(void) { return 0; }
+  
+  /**
+    \brief Add the given result function interface.
+
+    \param func factory function
+    \param name factory name
+    \param arg description of optional parameters the factory function recognizes
+  */
+  static inline void AddResultFunction(ProfileResultInterface* (*func)(int, const char * const *),
+                                const char *name, const char *arg)
+  {
+    (void)func;
+    (void)name;
+    (void)arg;
+  }
+#else
   static void StartRange(const char *range=0);
 
   /**
@@ -148,6 +230,7 @@ public:
   */
   static void AddResultFunction(ProfileResultInterface* (*func)(int, const char * const *),
                                 const char *name, const char *arg);
+#endif
 
 private:
   /** \internal

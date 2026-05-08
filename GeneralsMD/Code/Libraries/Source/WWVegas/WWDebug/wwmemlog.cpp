@@ -643,6 +643,7 @@ void * WWMemoryLogClass::Allocate_Memory(size_t size)
 {
 	AllocateCount++;
 #if DISABLE_MEMLOG
+#pragma warning(suppress: 4267)  // size_t -> unsigned int in FastAllocatorGeneral::Alloc; safe within loop bounds
 	return ALLOC_MEMORY(size);
 #else
 
@@ -660,16 +661,18 @@ void * WWMemoryLogClass::Allocate_Memory(size_t size)
 		void * ptr = ALLOC_MEMORY(size + sizeof(MemoryLogStruct));
 
 		if (ptr != NULL) {
+			const int allocSize = (size > static_cast<size_t>(INT_MAX)) ? INT_MAX : static_cast<int>(size);
+
 			/*
 			** Record this allocation
 			*/
-			int active_category = WWMemoryLogClass::Register_Memory_Allocated(size);
+			int active_category = WWMemoryLogClass::Register_Memory_Allocated(allocSize);
 
 			/*
 			** Write our logging structure into the beginning of the buffer.  I'm using
 			** placement new syntax to initialize the log structure right in the memory buffer
 			*/
-			new(ptr) MemoryLogStruct(active_category,size);
+			new(ptr) MemoryLogStruct(active_category,allocSize);
 
 			/*
 			** Return the allocated memory to the user, skipping past our log structure.

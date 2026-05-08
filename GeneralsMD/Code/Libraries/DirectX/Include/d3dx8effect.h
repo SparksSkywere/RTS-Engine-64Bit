@@ -7,7 +7,8 @@
 //
 ///////////////////////////////////////////////////////////////////////////
 
-#include "d3dx8.h"
+// Redirect to D3DX9
+#include "d3dx9.h"
 
 #ifndef __D3DX8EFFECT_H__
 #define __D3DX8EFFECT_H__

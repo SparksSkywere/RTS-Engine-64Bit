@@ -28,8 +28,6 @@
 
 #pragma once
 
-#error this file is obsolete
-
 #ifndef __GAMESPYGAMEINFO_H__
 #define __GAMESPYGAMEINFO_H__
 

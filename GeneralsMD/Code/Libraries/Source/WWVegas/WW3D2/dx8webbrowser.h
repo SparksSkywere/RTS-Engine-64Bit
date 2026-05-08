@@ -34,21 +34,19 @@
 #define DX8_WEBBROWSER_H
 
 #include <windows.h>
-#include "d3d8.h"
+#include <d3d9.h>
 
 // ***********************************
 // Set this to 0 to remove all embedded browser code.
 //
-#define ENABLE_EMBEDDED_BROWSER		1
+#define ENABLE_EMBEDDED_BROWSER		0
 //
 // ***********************************
 
-#if ENABLE_EMBEDDED_BROWSER
-
-// These options must match the browser option bits defined in the BrowserEngine code.
-// Look in febrowserengine.h
 #define BROWSEROPTION_SCROLLBARS		0x0001
 #define BROWSEROPTION_3DBORDER		0x0002
+
+#if ENABLE_EMBEDDED_BROWSER
 
 struct IDirect3DDevice9;
 
@@ -86,6 +84,21 @@ public:
 private:
 	// The window handle of the application.  This is initialized by Initialize().
 	static				HWND						hWnd;
+};
+
+#else
+
+class DX8WebBrowser
+{
+public:
+	static bool Initialize(const char* = 0, const char* = 0, const char* = 0, const char* = 0) { return false; }
+	static void Shutdown(void) {}
+	static void Update(void) {}
+	static void Render(int) {}
+	static void CreateBrowser(const char*, const char*, int, int, int, int, int = 0, LONG = BROWSEROPTION_SCROLLBARS | BROWSEROPTION_3DBORDER, LPDISPATCH = 0) {}
+	static void DestroyBrowser(const char*) {}
+	static bool Is_Browser_Open(const char*) { return false; }
+	static void Navigate(const char*, const char*) {}
 };
 
 #endif

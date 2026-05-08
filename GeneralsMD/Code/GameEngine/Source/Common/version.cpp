@@ -36,7 +36,7 @@ Version *TheVersion = NULL;	///< The Version singleton
 Version::Version()
 {
 	m_major = 1;
-	m_minor = 0;
+	m_minor = 5;
 	m_buildNum = 0;
 	m_localBuildNum = 0;
 	m_buildUser = AsciiString("somebody");

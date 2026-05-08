@@ -827,43 +827,10 @@ void Targa::XFlip(void)
 
 static __forceinline void _swapBytes(char *p1, char *p2, unsigned count)
 {
-  _asm
-  {
-    mov esi,[p1]
-    mov edi,[p2]
-    mov ebx,[count]
-    mov ecx,ebx
-    shr ecx,4
-    jz  lessThan16
-  lp:
-    mov eax,dword ptr [esi]
-    mov edx,dword ptr [esi+4]
-    xchg eax,dword ptr [edi]
-    xchg edx,dword ptr [edi+4]
-    mov dword ptr [esi],eax
-    mov dword ptr [esi+4],edx
-    mov eax,dword ptr [esi+8]
-    mov edx,dword ptr [esi+12]
-    xchg eax,dword ptr [edi+8]
-    xchg edx,dword ptr [edi+12]
-    mov dword ptr [esi+8],eax
-    mov dword ptr [esi+12],edx
-    add esi,16
-    add edi,16
-    dec ecx
-    jnz lp
-  lessThan16:
-    and ebx,15
-  lpLessThan16:
-    jz done
-    mov al,byte ptr [esi]
-    xchg al,byte ptr [edi]
-    mov byte ptr [edi],al
-    inc esi
-    inc edi
-    dec ebx
-    jmp lpLessThan16
-  done:
+  for (unsigned i = 0; i < count; i++) {
+    char tmp = p1[i];
+    p1[i] = p2[i];
+    p2[i] = tmp;
   }
 }
 

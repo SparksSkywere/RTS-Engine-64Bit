@@ -51,6 +51,9 @@
 // on Feb 12, 2002.  To regenerate, define REGENERATE_TRIG_TABLES, run the program, and copy the
 // resulting trig.txt file here.
 
+// Negative two's-complement hex literals in braced-init trigger C4838 (narrowing); values are correct.
+#pragma warning(push)
+#pragma warning(disable: 4838)
 static Int sinLookup[TRIG_RES] = {
 	0x00000000, 0x00000006, 0x0000000C, 0x00000012, 0x00000019, 0x0000001F, 0x00000025, 0x0000002B,
 	0x00000032, 0x00000038, 0x0000003E, 0x00000045, 0x0000004B, 0x00000051, 0x00000057, 0x0000005E,
@@ -1592,6 +1595,7 @@ static Int arcCosLookup[2 * INT_ONE] = {
 	0x0000016A, 0x0000015E, 0x00000152, 0x00000146, 0x00000139, 0x0000012C, 0x0000011E, 0x0000010F,
 	0x00000100, 0x000000EF, 0x000000DD, 0x000000CA, 0x000000B5, 0x0000009C, 0x00000080, 0x0000005A
 };
+#pragma warning(pop)
 
 
 static Int intArcCos( Int c )

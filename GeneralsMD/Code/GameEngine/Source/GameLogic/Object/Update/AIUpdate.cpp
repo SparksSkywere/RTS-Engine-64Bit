@@ -1753,6 +1753,16 @@ Bool AIUpdateInterface::computePath( PathfindServicesInterface *pathServices, Co
  		if( !getObject()->isKindOf(KINDOF_NO_COLLIDE))// If I don't collide with things, I don't need to tell them to get out of the way
 			TheAI->pathfinder()->moveAllies(getObject(), theNewPath);
 	} else {
+		if (m_path == NULL) {
+			DEBUG_LOG(("AIUpdateInterface::computePath - no path found for object '%s' (%s) from (%f,%f) to (%f,%f); pausing and retrying.\n",
+				getObject()->getName().str(), getObject()->getTemplate()->getName().str(),
+				getObject()->getPosition()->x, getObject()->getPosition()->y, destination->x, destination->y));
+			setLocomotorGoalNone();
+			if (m_queueForPathFrame <= TheGameLogic->getFrame()) {
+				setQueueForPathTime(LOGICFRAMES_PER_SECOND);
+			}
+			m_waitingForPath = TRUE;
+		}
 		// Keep using the old path.
  		if (m_path && m_isBlockedAndStuck) {
 			destroyPath();
@@ -2189,8 +2199,14 @@ UpdateSleepTime AIUpdateInterface::doLocomotor( void )
 							DEBUG_LOG(("Waiting %d, state %s\n", m_waitingForPath, getStateMachine()->getCurrentStateName().str()));
 							m_stateMachine->setDebugOutput(1);
 #endif
-							DEBUG_CRASH(("must have a path here (doLocomotor)"));
-							break;
+							DEBUG_LOG(("AIUpdateInterface::doLocomotor - path unexpectedly missing for '%s' (%s); clearing goal and retrying later.\n",
+								getObject()->getName().str(), getObject()->getTemplate()->getName().str()));
+							setLocomotorGoalNone();
+							if (m_queueForPathFrame <= TheGameLogic->getFrame()) {
+								setQueueForPathTime(LOGICFRAMES_PER_SECOND);
+							}
+							m_waitingForPath = TRUE;
+							return UPDATE_SLEEP(LOGICFRAMES_PER_SECOND);
 						}
 						Coord3D goalPos;
 						Real onPathDistToGoal;
@@ -2461,7 +2477,8 @@ Real AIUpdateInterface::getLocomotorDistanceToGoal()
 		case POSITION_ON_PATH:
 			if (!getPath()) 
 			{
-				DEBUG_CRASH(("must have a path here (getLocomotorDistanceToGoal)"));
+				DEBUG_LOG(("AIUpdateInterface::getLocomotorDistanceToGoal - path missing for '%s' (%s); returning 0.\n",
+					getObject()->getName().str(), getObject()->getTemplate()->getName().str()));
 				return 0.0f;
 			}
 			else if (!m_curLocomotor) 

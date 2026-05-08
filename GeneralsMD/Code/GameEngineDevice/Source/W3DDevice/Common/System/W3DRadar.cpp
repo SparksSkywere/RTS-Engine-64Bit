@@ -78,12 +78,42 @@ inline Bool legalRadarPoint( Int px, Int py )
 
 //-------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
-static WW3DFormat findFormat(const WW3DFormat formats[])
+static WW3DFormat getSafeFallbackFormat(const WW3DFormat formats[])
 {
+	for (Int i = 0; formats[i] != WW3D_FORMAT_UNKNOWN; ++i)
+	{
+		switch (formats[i])
+		{
+			case WW3D_FORMAT_A8R8G8B8:
+			case WW3D_FORMAT_X8R8G8B8:
+			case WW3D_FORMAT_R5G6B5:
+			case WW3D_FORMAT_R8G8B8:
+			case WW3D_FORMAT_A4R4G4B4:
+				return formats[i];
+			default:
+				break;
+		}
+	}
+
+	return WW3D_FORMAT_UNKNOWN;
+}
+
+//-------------------------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------------------------
+static WW3DFormat findFormat(const WW3DFormat formats[], const char *debugName)
+{
+	const DX8Caps *caps = DX8Wrapper::Peek_Current_Caps();
+	if (caps == NULL)
+	{
+		WW3DFormat fallback = getSafeFallbackFormat(formats);
+		DEBUG_LOG(("W3DRadar: DX caps are not ready while choosing the %s format; using fallback %d.\n", debugName, fallback));
+		return fallback;
+	}
+
 	for( Int i = 0; formats[ i ] != WW3D_FORMAT_UNKNOWN; i++ )
 	{
 
-		if( DX8Wrapper::Get_Current_Caps()->Support_Texture_Format( formats[ i ] ) )
+		if( caps->Support_Texture_Format( formats[ i ] ) )
 		{
 
 			return formats[ i ];
@@ -91,8 +121,10 @@ static WW3DFormat findFormat(const WW3DFormat formats[])
 		}  // end if
 
 	}  // end for i
-	DEBUG_CRASH(("WW3DRadar: No appropriate texture format\n") );
-	return WW3D_FORMAT_UNKNOWN;
+
+	WW3DFormat fallback = getSafeFallbackFormat(formats);
+	DEBUG_LOG(("W3DRadar: No supported %s format found; using fallback %d.\n", debugName, fallback));
+	return fallback;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -124,13 +156,13 @@ void W3DRadar::initializeTextureFormats( void )
 	};
 
 	// find a format for the terrain texture
-	m_terrainTextureFormat = findFormat(terrainFormats);
+	m_terrainTextureFormat = findFormat(terrainFormats, "terrain radar texture");
 
 	// find a format for the overlay texture
-	m_overlayTextureFormat = findFormat(overlayFormats);
+	m_overlayTextureFormat = findFormat(overlayFormats, "overlay radar texture");
 
 	// find a format for the shroud texture
-	m_shroudTextureFormat = findFormat(shroudFormats);
+	m_shroudTextureFormat = findFormat(shroudFormats, "shroud radar texture");
 
 }  // end initializeTextureFormats
 

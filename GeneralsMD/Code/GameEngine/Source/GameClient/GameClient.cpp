@@ -516,6 +516,14 @@ void GameClient::update( void )
 	// create the FRAME_TICK message
 	GameMessage *frameMsg = TheMessageStream->appendMessage( GameMessage::MSG_FRAME_TICK );
 	frameMsg->appendTimestampArgument( getFrame() );
+#ifdef _DEBUG
+	UnsignedInt traceFrame = (TheGameLogic != NULL) ? TheGameLogic->getFrame() : 0;
+	Bool traceInGameStartup = (TheGameLogic != NULL) && TheGameLogic->isInGame() && traceFrame <= 1;
+	if (traceInGameStartup)
+	{
+		DEBUG_LOG(("GameClient::update in-game frame=%u START\n", traceFrame));
+	}
+#endif
 	static Bool playSizzle = FALSE;
 	// We need to show the movie first.
 	if(TheGlobalData->m_playIntro && !TheDisplay->isMoviePlaying())
@@ -636,6 +644,12 @@ void GameClient::update( void )
 	{
 		TheWindowManager->UPDATE();
 	}
+#ifdef _DEBUG
+	if (traceInGameStartup)
+	{
+		DEBUG_LOG(("GameClient::update in-game frame=%u - after TheWindowManager->UPDATE()\n", traceFrame));
+	}
+#endif
 
 	// update the video player
 	{
@@ -667,7 +681,8 @@ void GameClient::update( void )
 			Int numPlayers=ThePlayerList->getPlayerCount();
 			Int numNonLocalPlayers=0;
 			Int nonLocalPlayerIndices[MAX_PLAYER_COUNT];
-			for (Int i=0; i<numPlayers; i++)
+			Int i;
+			for (i=0; i<numPlayers; i++)
 			{	Player *player=ThePlayerList->getNthPlayer(i);
 				//if (player->getPlayerType == PLAYER_HUMAN)
 				if (player->getPlayerIndex() != localPlayerIndex)
@@ -744,35 +759,77 @@ void GameClient::update( void )
 	{
 		TheTerrainVisual->UPDATE();
 	}
+#ifdef _DEBUG
+	if (traceInGameStartup)
+	{
+		DEBUG_LOG(("GameClient::update in-game frame=%u - after TheTerrainVisual->UPDATE()\n", traceFrame));
+	}
+#endif
 
 	// update display
 	{
 		TheDisplay->UPDATE();
 	}
+#ifdef _DEBUG
+	if (traceInGameStartup)
+	{
+		DEBUG_LOG(("GameClient::update in-game frame=%u - after TheDisplay->UPDATE()\n", traceFrame));
+	}
+#endif
 
 	{
 		USE_PERF_TIMER(GameClient_draw)
+#ifdef _DEBUG
+		if (traceInGameStartup)
+		{
+			DEBUG_LOG(("GameClient::update in-game frame=%u - before TheDisplay->DRAW()\n", traceFrame));
+		}
+#endif
 			
 	// redraw all views, update the GUI
 	//if(TheGameLogic->getFrame() >= 2)
 		
 		TheDisplay->DRAW();
+#ifdef _DEBUG
+		if (traceInGameStartup)
+		{
+			DEBUG_LOG(("GameClient::update in-game frame=%u - after TheDisplay->DRAW()\n", traceFrame));
+		}
+#endif
 	}
 
 	{
 		// let display string factory handle its update
 		TheDisplayStringManager->update();
 	}
+#ifdef _DEBUG
+	if (traceInGameStartup)
+	{
+		DEBUG_LOG(("GameClient::update in-game frame=%u - after TheDisplayStringManager->update()\n", traceFrame));
+	}
+#endif
 
 	{
 		// update the shell
 		TheShell->UPDATE();
 	}
+#ifdef _DEBUG
+	if (traceInGameStartup)
+	{
+		DEBUG_LOG(("GameClient::update in-game frame=%u - after TheShell->UPDATE()\n", traceFrame));
+	}
+#endif
 
 	{
 		// update the in game UI 
 		TheInGameUI->UPDATE();
 	}
+#ifdef _DEBUG
+	if (traceInGameStartup)
+	{
+		DEBUG_LOG(("GameClient::update in-game frame=%u - after TheInGameUI->UPDATE()\n", traceFrame));
+	}
+#endif
 }  // end update
 
 /** -----------------------------------------------------------------------------------------------
@@ -1190,6 +1247,7 @@ void GameClient::preloadAssets( TimeOfDay timeOfDay )
 	};
 
 	GlobalMemoryStatus(&before);
+	Int i;
 	for (i=0; *textureNames[i]; ++i)
 		TheDisplay->preloadTextureAssets(textureNames[i]);
 	GlobalMemoryStatus(&after);

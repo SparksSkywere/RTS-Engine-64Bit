@@ -10,7 +10,9 @@
 #ifndef __D3DX8_H__
 #define __D3DX8_H__
 
-#include "d3d8.h"
+// Redirect D3DX8 to D3DX9 (migration from DirectX 8 to DirectX 9)
+#include "d3d9.h"
+#include "d3dx9.h"
 #include <limits.h>
 
 #ifndef D3DXINLINE
@@ -33,6 +35,7 @@
 #define D3DX_DEFAULT ULONG_MAX
 #define D3DX_DEFAULT_FLOAT FLT_MAX
 
+// Note: d3dx8math.h, d3dx8core.h, d3dx8tex.h, etc. now redirect to d3dx9 headers
 #include "d3dx8math.h"
 #include "d3dx8core.h"
 #include "d3dx8tex.h"

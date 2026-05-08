@@ -512,14 +512,14 @@ void DX8Caps::Shutdown(void)
 
 void DX8Caps::Init_Caps(IDirect3DDevice9* D3DDevice)
 {
-	D3DDevice->SetRenderState(D3DRS_SOFTWAREVERTEXPROCESSING,TRUE);
-	DX8CALL(GetDeviceCaps(&Caps));
+	D3DDevice->SetSoftwareVertexProcessing(TRUE);
+	DX9CALL(GetDeviceCaps(&Caps));
 
 	if ((Caps.DevCaps&D3DDEVCAPS_HWTRANSFORMANDLIGHT)==D3DDEVCAPS_HWTRANSFORMANDLIGHT) {
 		SupportTnL=true;
 
-		D3DDevice->SetRenderState(D3DRS_SOFTWAREVERTEXPROCESSING,FALSE);
-		DX8CALL(GetDeviceCaps(&Caps));	
+		D3DDevice->SetSoftwareVertexProcessing(FALSE);
+		DX9CALL(GetDeviceCaps(&Caps));	
 	} else {
 		SupportTnL=false;			
 	}
@@ -632,7 +632,7 @@ void DX8Caps::Compute_Caps(WW3DFormat display_format, const D3DADAPTER_IDENTIFIE
 
 	SupportPointSprites = (Caps.MaxPointSize > 1.0f);
 	SupportNPatches = ((Caps.DevCaps&D3DDEVCAPS_NPATCHES)==D3DDEVCAPS_NPATCHES);
-	SupportZBias = ((Caps.RasterCaps&D3DPRASTERCAPS_ZBIAS)==D3DPRASTERCAPS_ZBIAS);
+	SupportZBias = ((Caps.RasterCaps&D3DPRASTERCAPS_DEPTHBIAS)==D3DPRASTERCAPS_DEPTHBIAS);
 	supportGamma=((Caps.Caps2&D3DCAPS2_FULLSCREENGAMMA)==D3DCAPS2_FULLSCREENGAMMA);
 	SupportModAlphaAddClr = (Caps.TextureOpCaps & D3DTEXOPCAPS_MODULATEALPHA_ADDCOLOR) == D3DTEXOPCAPS_MODULATEALPHA_ADDCOLOR;
 	SupportDot3=(Caps.TextureOpCaps & D3DTEXOPCAPS_DOTPRODUCT3) == D3DTEXOPCAPS_DOTPRODUCT3;

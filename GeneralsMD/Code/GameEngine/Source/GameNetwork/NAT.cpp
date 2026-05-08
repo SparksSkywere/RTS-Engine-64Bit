@@ -480,7 +480,8 @@ void NAT::establishConnectionPaths() {
 
 	// determine how many nodes we have.
 	m_numNodes = 0;
-	for (Int i = 0; i < MAX_SLOTS; ++i) {
+	Int i;
+	for (i = 0; i < MAX_SLOTS; ++i) {
 		if (m_slotList[i] != NULL) {
 			if (m_slotList[i]->isHuman()) {
 				DEBUG_LOG(("NAT::establishConnectionPaths - slot %d is %ls\n", i, m_slotList[i]->getName().str()));
@@ -658,8 +659,9 @@ void NAT::doThisConnectionRound() {
 	DEBUG_LOG(("NAT::doThisConnectionRound - starting process for connection round %d\n", m_connectionRound));
 	// clear out the states from the last round.
 	m_targetNodeNumber = -1;
+	Int i;
 
-	for (Int i = 0; i < MAX_SLOTS; ++i) {
+	for (i = 0; i < MAX_SLOTS; ++i) {
 		setConnectionState(i, NATCONNECTIONSTATE_NOSTATE);
 	}
 
@@ -1305,7 +1307,8 @@ void NAT::setConnectionState(Int nodeNumber, NATConnectionState state) {
 	// find the menu slot of the target node.
 	Int slotIndex = m_connectionNodes[m_targetNodeNumber].m_slotIndex;
 	Int slot = 0;
-	for (Int i = 0; i < MAX_SLOTS; ++i) {
+	Int i;
+	for (i = 0; i < MAX_SLOTS; ++i) {
 		if (m_slotList[i] != NULL) {
 			if (m_slotList[i]->isHuman()) {
 				if (i != m_connectionNodes[m_localNodeNumber].m_slotIndex) {

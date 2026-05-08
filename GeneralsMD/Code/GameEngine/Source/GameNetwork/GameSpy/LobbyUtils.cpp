@@ -212,7 +212,7 @@ static void gameTooltip(GameWindow *window,
 		return;
 	}
 
-	Int gameID = (Int)GadgetListBoxGetItemData(window, row, 0);
+	Int gameID = static_cast<Int>(reinterpret_cast<intptr_t>(GadgetListBoxGetItemData(window, row, 0)));
 	GameSpyStagingRoom *room = TheGameSpyInfo->findStagingRoomByID(gameID);
 	if (!room)
 	{
@@ -473,7 +473,7 @@ static void clearBuddyGames(void)
 
 struct GameSortStruct
 {
-	bool operator()(GameSpyStagingRoom *g1, GameSpyStagingRoom *g2)
+	bool operator()(GameSpyStagingRoom *g1, GameSpyStagingRoom *g2) const
 	{
 		// sort CRC mismatches to the bottom
 		Bool g1Good = (g1->getExeCRC() != TheGlobalData->m_exeCRC || g1->getIniCRC() != TheGlobalData->m_iniCRC);
@@ -572,7 +572,7 @@ static Int insertGame( GameWindow *win, GameSpyStagingRoom *game, Bool showMap )
 
 
 	Int index = GadgetListBoxAddEntryText(win, game->getGameName(), gameColor, -1, COLUMN_NAME);
-	GadgetListBoxSetItemData(win, (void *)game->getID(), index);
+GadgetListBoxSetItemData(win, reinterpret_cast<void*>(static_cast<intptr_t>(game->getID())), index);
 
 	UnicodeString s;
 
@@ -695,7 +695,7 @@ void RefreshGameListBox( GameWindow *win, Bool showMap )
 	GadgetListBoxGetSelected(win, &selectedIndex);
 	if (selectedIndex != -1 )
 	{
-		selectedID = (Int)GadgetListBoxGetItemData(win, selectedIndex);
+		selectedID = static_cast<Int>(reinterpret_cast<intptr_t>(GadgetListBoxGetItemData(win, selectedIndex)));
 	}
 	int prevPos = GadgetListBoxGetTopVisibleEntry( win );
 
@@ -886,7 +886,7 @@ void playerTemplateComboBoxTooltip(GameWindow *wndComboBox, WinInstanceData *ins
 {
 	Int index = 0;
 	GadgetComboBoxGetSelectedPos(wndComboBox, &index);
-	Int templateNum = (Int)GadgetComboBoxGetItemData(wndComboBox, index);
+	Int templateNum = static_cast<Int>(reinterpret_cast<intptr_t>(GadgetComboBoxGetItemData(wndComboBox, index)));
 	UnicodeString ustringTooltip;
 	if (templateNum == -1)
 	{
@@ -917,7 +917,7 @@ void playerTemplateListBoxTooltip(GameWindow *wndListBox, WinInstanceData *instD
 	if (row == -1 || col == -1)
 		return;
 
-	Int templateNum = (Int)GadgetListBoxGetItemData(wndListBox, row, col);
+	Int templateNum = static_cast<Int>(reinterpret_cast<intptr_t>(GadgetListBoxGetItemData(wndListBox, row, col)));
 	UnicodeString ustringTooltip;
 	if (templateNum == -1)
 	{

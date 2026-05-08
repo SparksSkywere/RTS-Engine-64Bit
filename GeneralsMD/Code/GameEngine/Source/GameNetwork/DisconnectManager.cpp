@@ -74,6 +74,7 @@ DisconnectManager::~DisconnectManager() {
 }
 
 void DisconnectManager::init() {
+	Int i;
 	TheDisconnectMenu->hideScreen(); // make sure the screen starts out hidden.
 	m_lastFrame = 0;
 	m_lastFrameTime = -1;
@@ -82,7 +83,7 @@ void DisconnectManager::init() {
 	m_currentPacketRouterIndex = 0;
 	m_timeOfDisconnectScreenOn = 0;
 
-	for (Int i = 0; i < MAX_SLOTS; ++i) {
+	for (i = 0; i < MAX_SLOTS; ++i) {
 		for (Int j = 0; j < MAX_SLOTS; ++j) {
 			m_playerVotes[i][j].vote = FALSE;
 			m_playerVotes[i][j].frame = 0;

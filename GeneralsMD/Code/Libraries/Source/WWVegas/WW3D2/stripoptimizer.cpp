@@ -1,4 +1,4 @@
-/*
+﻿/*
 **	Command & Conquer Generals Zero Hour(tm)
 **	Copyright 2025 Electronic Arts Inc.
 **
@@ -201,8 +201,6 @@ void StripOptimizerClass::Optimize_Strip_Order (int* strips, int strip_count)
 
 //	WWASSERT((out+outSize)==o);							// HUH?
 
-	for (i = 0; i < outSize; i++)						// copy output
-		strips[i] = out[i];
 
 	delete[] out;
 	delete[] ss;
@@ -288,6 +286,7 @@ void StripOptimizerClass::Optimize_Triangle_Order (int *tris, int triangle_count
 
 	WWASSERT(o == (out+triangle_count));
 
+	int i;
 	for (i = 0; i < triangle_count; i++)
 	{
 		Tri* d = (Tri*)(tris)+i;
@@ -706,7 +705,8 @@ inline TriangleQueue::TriangleQueue	(Triangle* tris, int N)
 inline Vector3i Stripify::getTriangleNodeConnectivityWeights (const TriangleQueue& queue, const Triangle& tri)
 {
 	int weight[3];
-	for (int i = 0; i < 3; i++)
+	int i;
+	for (i = 0; i < 3; i++)
 	{
 		weight[i] = queue.getVertexConnectivity(tri.m_vertices[i]);
 	}

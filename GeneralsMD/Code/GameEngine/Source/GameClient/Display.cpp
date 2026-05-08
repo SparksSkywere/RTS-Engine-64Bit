@@ -28,6 +28,8 @@
 
 #include "PreRTS.h"	// This must go first in EVERY cpp file int the GameEngine
 
+#include "Common/AudioAffect.h"
+#include "Common/GameAudio.h"
 #include "GameClient/Display.h"
 #include "GameClient/Mouse.h"
 #include "GameClient/VideoPlayer.h"
@@ -63,6 +65,7 @@ Display::Display()
 	m_elapsedMovieTime = 0;
 	m_elapsedCopywriteTime = 0;
 	m_copyrightDisplayString = NULL;
+	m_pausedAudioForMovie = FALSE;
 
 	// Added by Sadullah Nader
 	// Initializations missing and needed
@@ -205,10 +208,21 @@ void Display::playLogoMovie( AsciiString movieName, Int minMovieLength, Int minC
 	
 	stopMovie();
 
+	if (TheAudio != NULL && !m_pausedAudioForMovie)
+	{
+		TheAudio->pauseAudio(AudioAffect_All);
+		m_pausedAudioForMovie = TRUE;
+	}
+
 	m_videoStream = TheVideoPlayer->open( movieName );
 
 	if ( m_videoStream == NULL )
 	{
+		if (TheAudio != NULL && m_pausedAudioForMovie)
+		{
+			TheAudio->resumeAudio(AudioAffect_All);
+			m_pausedAudioForMovie = FALSE;
+		}
 		return;
 	}
 	
@@ -238,12 +252,22 @@ void Display::playMovie( AsciiString movieName)
 	
 	stopMovie();
 
+	if (TheAudio != NULL && !m_pausedAudioForMovie)
+	{
+		TheAudio->pauseAudio(AudioAffect_All);
+		m_pausedAudioForMovie = TRUE;
+	}
 
 
 	m_videoStream = TheVideoPlayer->open( movieName );
 
 	if ( m_videoStream == NULL )
 	{
+		if (TheAudio != NULL && m_pausedAudioForMovie)
+		{
+			TheAudio->resumeAudio(AudioAffect_All);
+			m_pausedAudioForMovie = FALSE;
+		}
 		return;
 	}
 	
@@ -285,6 +309,11 @@ void Display::stopMovie( void )
 		TheDisplayStringManager->freeDisplayString(m_copyrightDisplayString);
 		m_copyrightDisplayString = NULL;
 	}
+	if (TheAudio != NULL && m_pausedAudioForMovie)
+	{
+		TheAudio->resumeAudio(AudioAffect_All);
+		m_pausedAudioForMovie = FALSE;
+	}
 	m_copyrightHoldTime = -1;
 	m_movieHoldTime = -1;
 }
@@ -311,7 +340,7 @@ void Display::update( void )
 					if(m_copyrightDisplayString)
 						m_copyrightDisplayString->deleteInstance();
 					m_copyrightDisplayString = TheDisplayStringManager->newDisplayString();
-					m_copyrightDisplayString->setText(TheGameText->fetch("GUI:EACopyright"));
+						m_copyrightDisplayString->setText(UnicodeString(L"(C) 2026 Skywere Industries (Was EA)"));
 					if (TheGlobalLanguageData && TheGlobalLanguageData->m_copyrightFont.name.isNotEmpty())
 					{	FontDesc	*fontdesc=&TheGlobalLanguageData->m_copyrightFont;
 						m_copyrightDisplayString->setFont(TheFontLibrary->getFont(fontdesc->name,

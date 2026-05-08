@@ -811,6 +811,10 @@ AudioRequest *AudioManager::allocateAudioRequest( Bool useAudioEvent )
 void AudioManager::releaseAudioRequest( AudioRequest *requestToRelease )
 {
 	if (requestToRelease) {
+		if (requestToRelease->m_usePendingEvent && requestToRelease->m_pendingEvent) {
+			releaseAudioEventRTS(requestToRelease->m_pendingEvent);
+			requestToRelease->m_pendingEvent = NULL;
+		}
 		requestToRelease->deleteInstance();
 	}
 }

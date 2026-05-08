@@ -58,7 +58,7 @@ class	SurfaceClass;
 //
 class FontCharsClassCharDataStruct : public W3DMPO
 {
-	W3DMPO_GLUE(FontCharsClassCharDataStruct)
+	W3DMPO_GLUE_HEAP(FontCharsClassCharDataStruct)
 public:
 	WCHAR				Value;
 	short				Width;
@@ -77,7 +77,7 @@ public:
 
 class FontCharsClass : public W3DMPO, public RefCountClass 
 {
-	W3DMPO_GLUE(FontCharsClass)
+	W3DMPO_GLUE_HEAP(FontCharsClass)
 
 public:
 	FontCharsClass( void );

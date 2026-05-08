@@ -94,6 +94,8 @@ static ShaderClass PlayerColorShader(SC_PLAYER_COLOR);
 //=============================================================================
 RTS3DScene::RTS3DScene()
 {
+	Int i;
+
 	setName("RTS3DScene");
 	m_drawTerrainOnly = false;
 	m_numGlobalLights=0;
@@ -200,7 +202,8 @@ RTS3DScene::RTS3DScene()
 //=============================================================================
 RTS3DScene::~RTS3DScene()
 {
-	for (Int i=0; i<LightEnvironmentClass::MAX_LIGHTS; i++)
+	Int i;
+	for (i=0; i<LightEnvironmentClass::MAX_LIGHTS; i++)
 	{
 		REF_PTR_RELEASE(m_globalLight[i]);
 		REF_PTR_RELEASE(m_infantryLight[i]);
@@ -1255,14 +1258,14 @@ void renderStenciledPlayerColor( UnsignedInt color, UnsignedInt stencilRef, Bool
 	REF_PTR_RELEASE(vmat);
 	DX8Wrapper::Apply_Render_State_Changes();	//force update all renderstates
 
-	LPDIRECT3DDEVICE8 m_pDev=DX8Wrapper::_Get_D3D_Device8();
+	LPDIRECT3DDEVICE8 m_pDev=DX8Wrapper::_Get_D3D_Device9();
 
 	if (!m_pDev)
 		return;	//need device to render anything.
 
 	//draw polygons like this is very inefficient but for only 2 triangles, it's
 	//not worth bothering with index/vertex buffers.
-	m_pDev->SetVertexShader(D3DFVF_XYZRHW | D3DFVF_DIFFUSE);
+	D3D9_SetVertexShader(m_pDev, D3DFVF_XYZRHW | D3DFVF_DIFFUSE);
 
 	// Set stencil states
 	DX8Wrapper::Set_DX8_Render_State(D3DRS_STENCILENABLE, TRUE );
@@ -1281,8 +1284,9 @@ void renderStenciledPlayerColor( UnsignedInt color, UnsignedInt stencilRef, Bool
 		DX8Wrapper::Set_DX8_Render_State(D3DRS_ZFUNC, D3DCMP_NEVER  );	//fail all access to the frame buffer to improve memory bandwidth
 
 		//disable writes to color buffer
-		if (DX8Wrapper::Get_Current_Caps()->Get_DX8_Caps().PrimitiveMiscCaps & D3DPMISCCAPS_COLORWRITEENABLE)
-		{	DX8Wrapper::_Get_D3D_Device8()->GetRenderState(D3DRS_COLORWRITEENABLE, &oldColorWriteEnable);
+		const DX8Caps *caps = DX8Wrapper::Peek_Current_Caps();
+		if (caps != NULL && (caps->Get_DX8_Caps().PrimitiveMiscCaps & D3DPMISCCAPS_COLORWRITEENABLE))
+		{	DX8Wrapper::_Get_D3D_Device9()->GetRenderState(D3DRS_COLORWRITEENABLE, &oldColorWriteEnable);
 			DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE,0);
 		}
 		else
@@ -1332,6 +1336,7 @@ void RTS3DScene::flushOccludedObjectsIntoStencil(RenderInfoClass & rinfo)
 	Int playerColorIndex[MAX_PLAYER_COUNT];
 	Int visiblePlayerColors[MAX_PLAYER_COUNT];	///<color assigned to each of the visible players
 	Int numObjects;
+	Int i;
 	Vector3 hsv,rgb;
 
 	Int usedPlayerColorIndex=1;
@@ -1535,6 +1540,7 @@ void RTS3DScene::flushOccludedObjects(RenderInfoClass & rinfo)
 {
 	RenderObjClass *robj;
 	Drawable *draw;
+	Int i;
 
 	TheW3DShadowManager->setStencilShadowMask(0);
 
@@ -1559,7 +1565,7 @@ void RTS3DScene::flushOccludedObjects(RenderInfoClass & rinfo)
 		//First draw all the solid colored models
 		///@todo: Optimize this so that the extra passes don't actually install the material since it's all the same.
 		rinfo.Push_Override_Flags(RenderInfoClass::RINFO_OVERRIDE_ADDITIONAL_PASSES_ONLY);	//disable textures
-		for (Int i=0; i<m_occludedObjectsCount; i++)
+		for (i=0; i<m_occludedObjectsCount; i++)
 		{
 			robj=m_potentialOccludees[i];
 

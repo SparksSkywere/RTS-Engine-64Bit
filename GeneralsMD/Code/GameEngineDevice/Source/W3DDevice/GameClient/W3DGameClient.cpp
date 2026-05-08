@@ -35,6 +35,8 @@
 
 // SYSTEM INCLUDES ////////////////////////////////////////////////////////////
 #include <stdlib.h>
+#include <windows.h>   // for timeGetTime()
+#include <math.h>      // for fmod()
 
 // USER INCLUDES //////////////////////////////////////////////////////////////
 
@@ -54,6 +56,7 @@
 #include "W3DDevice/GameClient/W3DScene.h"
 #include "W3DDevice/GameClient/W3DShadow.h"
 #include "W3DDevice/GameClient/heightmap.h"
+#include "W3DDevice/GameClient/W3DDisplay.h"
 #include "WW3D2/Part_emt.h"
 #include "WW3D2/HAnim.h"
 #include "WW3D2/HTree.h"
@@ -63,8 +66,10 @@
 //-------------------------------------------------------------------------------------------------
 W3DGameClient::W3DGameClient()
 {
-
-}  // end W3DGameClient
+	m_dayNightStartTime          = 0;
+	m_dayNightTerrainTickCounter = 0;
+	m_dayNightLastTOD            = TIME_OF_DAY_INVALID;
+}
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
@@ -89,9 +94,59 @@ void W3DGameClient::init( void )
 //-------------------------------------------------------------------------------------------------
 void W3DGameClient::update( void )
 {
-
 	// call base
 	GameClient::update();
+
+	// --- Day/night cycle ---
+	if ( TheGlobalData && TheGlobalData->m_dayNightCycleEnabled && TheDisplay )
+	{
+		DWORD now = timeGetTime();
+		if ( m_dayNightStartTime == 0 )
+			m_dayNightStartTime = now;
+
+		// Cycle order: MORNING -> AFTERNOON -> EVENING -> NIGHT -> (back to MORNING)
+		static const TimeOfDay todCycle[4] = {
+			TIME_OF_DAY_MORNING,
+			TIME_OF_DAY_AFTERNOON,
+			TIME_OF_DAY_EVENING,
+			TIME_OF_DAY_NIGHT
+		};
+
+		float cycleDurationMs = TheGlobalData->m_dayNightDurationSeconds * 1000.0f;
+		if ( cycleDurationMs < 1.0f ) cycleDurationMs = 1.0f;
+
+		float elapsed  = (float)(now - m_dayNightStartTime);
+		float t        = (float)fmod( (double)elapsed, (double)cycleDurationMs ) / cycleDurationMs; // [0,1)
+
+		int   segment  = (int)(t * 4.0f);       // which of the 4 TOD segments
+		if ( segment > 3 ) segment = 3;
+		float localT   = t * 4.0f - segment;     // [0,1) within this segment
+
+		TimeOfDay todA = todCycle[segment];
+		TimeOfDay todB = todCycle[(segment + 1) & 3];
+
+		// Apply smooth interpolated scene and terrain lighting
+		W3DDisplay *w3dDisplay = static_cast<W3DDisplay*>(TheDisplay);
+		w3dDisplay->applyInterpolatedLighting( todA, todB, localT );
+
+		// Notify subsystems about the (nearest) discrete TOD every few seconds
+		// so water/shadows/etc. update their TOD-specific textures/settings.
+		TimeOfDay nearestTOD = (localT < 0.5f) ? todA : todB;
+		if ( nearestTOD != m_dayNightLastTOD )
+		{
+			m_dayNightLastTOD = nearestTOD;
+			setTimeOfDay( nearestTOD );
+		}
+
+		// Trigger terrain vertex-color rebuild periodically (every ~2 seconds at 30fps)
+		m_dayNightTerrainTickCounter++;
+		if ( m_dayNightTerrainTickCounter >= 60 )
+		{
+			m_dayNightTerrainTickCounter = 0;
+			if ( TheTerrainRenderObject )
+				TheTerrainRenderObject->staticLightingChanged();
+		}
+	}
 
 }  // end update
 
@@ -101,6 +156,10 @@ void W3DGameClient::update( void )
 //-------------------------------------------------------------------------------------------------
 void W3DGameClient::reset( void )
 {
+	// Reset day/night cycle so it restarts fresh on next map load
+	m_dayNightStartTime          = 0;
+	m_dayNightTerrainTickCounter = 0;
+	m_dayNightLastTOD            = TIME_OF_DAY_INVALID;
 
 	// call base class
 	GameClient::reset();

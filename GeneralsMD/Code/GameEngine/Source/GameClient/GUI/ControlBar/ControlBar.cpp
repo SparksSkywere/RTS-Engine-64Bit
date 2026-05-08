@@ -222,6 +222,11 @@ void ControlBar::populatePurchaseScience( Player* player )
 			// populate the visible button with data from the command button
 
 			setControlCommand( m_sciencePurchaseWindowsRank1[ i ], commandButton );
+			if( commandButton->getCommandType() != GUI_COMMAND_PURCHASE_SCIENCE )
+			{
+				m_sciencePurchaseWindowsRank1[ i ]->winHide( TRUE );
+				continue;
+			}
 			if (!commandButton->getScienceVec().empty())
 			{
 				ScienceType	st = commandButton->getScienceVec()[ 0 ];
@@ -282,12 +287,20 @@ void ControlBar::populatePurchaseScience( Player* player )
 			// populate the visible button with data from the command button
 
 			setControlCommand( m_sciencePurchaseWindowsRank3[ i ], commandButton );
+			if( commandButton->getCommandType() != GUI_COMMAND_PURCHASE_SCIENCE )
+			{
+				m_sciencePurchaseWindowsRank3[ i ]->winHide( TRUE );
+				continue;
+			}
 			ScienceType	st = SCIENCE_INVALID; 
 			ScienceVec sv = commandButton->getScienceVec();
-			if (! sv.empty())
+			if (sv.empty())
 			{
-				st = sv[ 0 ];
+				DEBUG_LOG(("ControlBar::populatePurchaseScience - purchase science button %s has no science entries, hiding it\n", commandButton->getName().str()));
+				m_sciencePurchaseWindowsRank3[ i ]->winHide( TRUE );
+				continue;
 			}
+			st = sv[ 0 ];
 
 			if( player->isScienceDisabled( st ) )
 			{
@@ -345,8 +358,20 @@ void ControlBar::populatePurchaseScience( Player* player )
 			// populate the visible button with data from the command button
 
 			setControlCommand( m_sciencePurchaseWindowsRank8[ i ], commandButton );
+			if( commandButton->getCommandType() != GUI_COMMAND_PURCHASE_SCIENCE )
+			{
+				m_sciencePurchaseWindowsRank8[ i ]->winHide( TRUE );
+				continue;
+			}
 			ScienceType	st = SCIENCE_INVALID; 
-			st = commandButton->getScienceVec()[ 0 ];
+			ScienceVec sv = commandButton->getScienceVec();
+			if (sv.empty())
+			{
+				DEBUG_LOG(("ControlBar::populatePurchaseScience - purchase science button %s has no science entries, hiding it\n", commandButton->getName().str()));
+				m_sciencePurchaseWindowsRank8[ i ]->winHide( TRUE );
+				continue;
+			}
+			st = sv[ 0 ];
 			if( player->isScienceDisabled( st ) )
 			{
 				//A script has deemed this science disabled.
@@ -808,7 +833,7 @@ void CommandSet::parseCommandButton( INI* ini, void *instance, void *store, cons
 
 	// get the index to store the command at, and the command array itself
 	const CommandButton **buttonArray = (const CommandButton **)store;
-	Int buttonIndex = (Int)userData;
+	Int buttonIndex = static_cast<Int>(reinterpret_cast<intptr_t>(userData));
 
 	// sanity
 	DEBUG_ASSERTCRASH( buttonIndex < MAX_COMMANDS_PER_SET, ("parseCommandButton: button index '%d' out of range\n", 
@@ -1545,8 +1570,15 @@ void ControlBar::update( void )
 	if( m_currentSelectedDrawable == NULL )
 	{
 
-		// we better be in the default none context
-		DEBUG_ASSERTCRASH( m_currContext == CB_CONTEXT_NONE, ("ControlBar::update no selection, but not we're not showing the default NONE context\n") );
+		// On some game-start transitions the control bar can still be in a stale context
+		// from the previous screen/frame.  Recover by switching back to NONE instead of
+		// halting the debug build.
+		if( m_currContext != CB_CONTEXT_NONE )
+		{
+			DEBUG_LOG(("ControlBar::update - no selection while context %d is active; switching back to CB_CONTEXT_NONE\n",
+				m_currContext));
+			switchToContext( CB_CONTEXT_NONE, NULL );
+		}
 		return;
 
 	}  // end if
@@ -3259,6 +3291,7 @@ void ControlBar::initSpecialPowershortcutBar( Player *player)
 	parentName = layoutName;
 	parentName.concat(":ButtonParent%d");
 	m_currentlyUsedSpecialPowersButtons = MIN(pt->getSpecialPowerShortcutButtonCount(), MAX_SPECIAL_POWER_SHORTCUTS);
+	Int i;
 	for( i = 0; i < MAX_SPECIAL_POWER_SHORTCUTS; i++ )
 	{
 		windowName.format( tempName, i+1 );
@@ -3341,8 +3374,10 @@ void ControlBar::populateSpecialPowerShortcut( Player *player)
 
 				if( !power )
 				{
-					//Should have the power.. button is probably missing the SpecialPower = xxx entry.
-					DEBUG_CRASH( ("CommandButton %s needs a SpecialPower entry, but it's either incorrect or missing.", commandButton->getName().str()) );
+					// Legacy data can contain shortcut buttons without a matching SpecialPower entry.
+					// Skip them rather than halting the whole match startup.
+					DEBUG_LOG(("ControlBar::populateSpecialPowerShortcutBar - CommandButton %s needs a valid SpecialPower entry; skipping shortcut button\n",
+						commandButton->getName().str()));
 					continue;
 				}
 
@@ -3416,10 +3451,10 @@ void ControlBar::populateSpecialPowerShortcut( Player *player)
 								const CommandButton *command = commandSet1->getCommandButton( i );
 								if( command && command->getCommandType() == GUI_COMMAND_PURCHASE_SCIENCE )
 								{
-									//All purchase sciences specify a single science.
+									// All purchase sciences should specify a single science, but some legacy data does not.
 									if( command->getScienceVec().empty() )
 									{
-										DEBUG_CRASH( ("Commandbutton %s is a purchase science button without any science! Please add it.", command->getName().str() ) );
+										DEBUG_LOG(("Commandbutton %s is a purchase science button without any science; skipping it.\n", command->getName().str()));
 									}
 									else if( command->getScienceVec()[0] == science )
 									{
@@ -3435,10 +3470,10 @@ void ControlBar::populateSpecialPowerShortcut( Player *player)
 								const CommandButton *command = commandSet3->getCommandButton( i );
 								if( command && command->getCommandType() == GUI_COMMAND_PURCHASE_SCIENCE )
 								{
-									//All purchase sciences specify a single science.
+									// All purchase sciences should specify a single science, but some legacy data does not.
 									if( command->getScienceVec().empty() )
 									{
-										DEBUG_CRASH( ("Commandbutton %s is a purchase science button without any science! Please add it.", command->getName().str() ) );
+										DEBUG_LOG(("Commandbutton %s is a purchase science button without any science; skipping it.\n", command->getName().str()));
 									}
 									else if( command->getScienceVec()[0] == science )
 									{
@@ -3454,10 +3489,10 @@ void ControlBar::populateSpecialPowerShortcut( Player *player)
 								const CommandButton *command = commandSet8->getCommandButton( i );
 								if( command && command->getCommandType() == GUI_COMMAND_PURCHASE_SCIENCE )
 								{
-									//All purchase sciences specify a single science.
+									// All purchase sciences should specify a single science, but some legacy data does not.
 									if( command->getScienceVec().empty() )
 									{
-										DEBUG_CRASH( ("Commandbutton %s is a purchase science button without any science! Please add it.", command->getName().str() ) );
+										DEBUG_LOG(("Commandbutton %s is a purchase science button without any science; skipping it.\n", command->getName().str()));
 									}
 									else if( command->getScienceVec()[0] == science )
 									{

@@ -29,22 +29,76 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Profile|x64'"><TargetName>WWUtilProfile</TargetName></PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)..;$(ProjectDir)..\WWLib;$(ProjectDir)..\WWMath;$(ProjectDir)..\WWDebug;$(ProjectDir)..\WWSaveLoad;$(ProjectDir)..\WW3D2;$(ProjectDir)..\..\..\Include;$(ProjectDir)..\..\..\..\..\GameEngine\Include;$(ProjectDir)..\..\..\..\..\GameEngineDevice\Include;$(ProjectDir)..\..\..\..\Include\Granny;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)..;$(ProjectDir)..\WWLib;$(ProjectDir)..\WWMath;$(ProjectDir)..\WWDebug;$(ProjectDir)..\WWSaveLoad;$(ProjectDir)..\WW3D2;$(ProjectDir)..\WWDownload;$(ProjectDir)..\..\Benchmark;$(ProjectDir)..\..\Compression;$(ProjectDir)..\..\Compression\EAC;$(ProjectDir)..\..\Compression\LZHCompress;$(ProjectDir)..\..\..\..\..\..\Dependencies\zlib-1.1.4;$(ProjectDir)..\..\..\Include;$(ProjectDir)..\..\..\..\GameEngine\Include;$(ProjectDir)..\..\..\..\GameEngineDevice\Include;$(ProjectDir)..\..\..\..\Include\Granny;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <WarningLevel>Level3</WarningLevel>
       <TreatWarningAsError>false</TreatWarningAsError>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
-      <LanguageStandard>stdcpp14</LanguageStandard><PreprocessorDefinitions>WIN32;_WINDOWS;_SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalOptions>/FS %(AdditionalOptions)</AdditionalOptions>
+      <LanguageStandard>stdcpp14</LanguageStandard><PreprocessorDefinitions>WIN64;_WIN64;_WINDOWS;_SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;_WINSOCK_DEPRECATED_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalOptions>/FS /wd4267 /wd4018 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Internal|x64' Or '$(Configuration)|$(Platform)'=='Profile|x64' Or '$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile><RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary><Optimization>MaxSpeed</Optimization></ClCompile>
   </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64' Or '$(Configuration)|$(Platform)'=='DebugW3D|x64'">
+    <ClCompile><PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions></ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile><PreprocessorDefinitions>NDEBUG;_RELEASE;%(PreprocessorDefinitions)</PreprocessorDefinitions></ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Internal|x64'">
+    <ClCompile><PreprocessorDefinitions>NDEBUG;_INTERNAL;%(PreprocessorDefinitions)</PreprocessorDefinitions></ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Profile|x64'">
+    <ClCompile><PreprocessorDefinitions>NDEBUG;_RELEASE;_PROFILE;%(PreprocessorDefinitions)</PreprocessorDefinitions></ClCompile>
+  </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="**\*.cpp" />
     <ClCompile Include="**\*.c" />
+    <ClCompile Include="..\WWSaveLoad\definition.cpp" />
+    <ClCompile Include="..\WWSaveLoad\definitionfactory.cpp" />
+    <ClCompile Include="..\WWSaveLoad\definitionfactorymgr.cpp" />
+    <ClCompile Include="..\WWSaveLoad\definitionmgr.cpp" />
+    <ClCompile Include="..\WWSaveLoad\parameter.cpp" />
+    <ClCompile Include="..\WWSaveLoad\persistfactory.cpp" />
+    <ClCompile Include="..\WWSaveLoad\pointerremap.cpp" />
+    <ClCompile Include="..\WWSaveLoad\saveload.cpp" />
+    <ClCompile Include="..\WWSaveLoad\saveloadstatus.cpp" />
+    <ClCompile Include="..\WWSaveLoad\saveloadsubsystem.cpp" />
+    <ClCompile Include="..\WWSaveLoad\twiddler.cpp" />
+    <ClCompile Include="..\WWSaveLoad\wwsaveload.cpp" />
+    <ClCompile Include="..\WWDownload\Download.cpp" />
+    <ClCompile Include="..\WWDownload\FTP.CPP" />
+    <ClCompile Include="..\WWDownload\registry.cpp" />
+    <ClCompile Include="..\WWDownload\urlBuilder.cpp" />
+    <ClCompile Include="..\..\Compression\CompressionManager.cpp" />
+    <ClCompile Include="..\..\Compression\EAC\btreedecode.cpp" />
+    <ClCompile Include="..\..\Compression\EAC\btreeencode.cpp" />
+    <ClCompile Include="..\..\Compression\EAC\huffdecode.cpp" />
+    <ClCompile Include="..\..\Compression\EAC\huffencode.cpp" />
+    <ClCompile Include="..\..\Compression\EAC\refdecode.cpp" />
+    <ClCompile Include="..\..\Compression\EAC\refencode.cpp" />
+    <ClCompile Include="..\..\Compression\LZHCompress\NoxCompressStub.cpp" />
+    <ClCompile Include="..\..\..\..\..\..\Dependencies\zlib-1.1.4\adler32.c" />
+    <ClCompile Include="..\..\..\..\..\..\Dependencies\zlib-1.1.4\compress.c" />
+    <ClCompile Include="..\..\..\..\..\..\Dependencies\zlib-1.1.4\crc32.c" />
+    <ClCompile Include="..\..\..\..\..\..\Dependencies\zlib-1.1.4\deflate.c" />
+    <ClCompile Include="..\..\..\..\..\..\Dependencies\zlib-1.1.4\infblock.c" />
+    <ClCompile Include="..\..\..\..\..\..\Dependencies\zlib-1.1.4\infcodes.c" />
+    <ClCompile Include="..\..\..\..\..\..\Dependencies\zlib-1.1.4\inffast.c" />
+    <ClCompile Include="..\..\..\..\..\..\Dependencies\zlib-1.1.4\inflate.c" />
+    <ClCompile Include="..\..\..\..\..\..\Dependencies\zlib-1.1.4\inftrees.c" />
+    <ClCompile Include="..\..\..\..\..\..\Dependencies\zlib-1.1.4\infutil.c" />
+    <ClCompile Include="..\..\..\..\..\..\Dependencies\zlib-1.1.4\trees.c" />
+    <ClCompile Include="..\..\..\..\..\..\Dependencies\zlib-1.1.4\uncompr.c" />
+    <ClCompile Include="..\..\..\..\..\..\Dependencies\zlib-1.1.4\zutil.c" />
+    <ClCompile Include="..\..\Benchmark\EMFLOAT.C" />
+    <ClCompile Include="..\..\Benchmark\MISC.C" />
+    <ClCompile Include="..\..\Benchmark\NBENCH0.C" />
+    <ClCompile Include="..\..\Benchmark\NBENCH1.C" />
+    <ClCompile Include="..\..\Benchmark\RunBenchmarkStub.c" />
+    <ClCompile Include="..\..\Benchmark\SYSSPEC.C" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />
 </Project>
-

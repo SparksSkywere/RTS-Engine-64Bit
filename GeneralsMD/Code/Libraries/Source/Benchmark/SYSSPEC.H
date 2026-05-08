@@ -14,7 +14,7 @@
 
 #ifndef MAC
 #include <malloc.h>
-#include <mem.h>
+#include <memory.h>
 #endif
 
 

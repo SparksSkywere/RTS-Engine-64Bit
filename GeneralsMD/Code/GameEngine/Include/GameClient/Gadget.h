@@ -375,6 +375,7 @@ typedef struct _ListboxData
 	Short				insertPos;				// Insertion position
 
 	Int					selectPos;				// Position of current selected entry (for SINGLE select)
+	Int					mouseOverPos;		// Position of the row currently under the mouse cursor
 	Int					*selections;			// Pointer to array of selections (for MULTI select)
 
 	Short				displayHeight;		// Height in pixels of listbox display region

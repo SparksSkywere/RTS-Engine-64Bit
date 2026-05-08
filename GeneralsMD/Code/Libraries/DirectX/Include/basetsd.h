@@ -27,6 +27,14 @@ Revision History:
 extern "C" {
 #endif
 
+#if !defined(POINTER_64)
+#if defined(_WIN64)
+#define POINTER_64 __ptr64
+#else
+#define POINTER_64
+#endif
+#endif
+
 typedef signed char         INT8, *PINT8;
 typedef signed short        INT16, *PINT16;
 typedef signed int          INT32, *PINT32;

@@ -1303,6 +1303,7 @@ return;
 		inv_scale=1.0f/ValueScale;
 	}
 	inv_scale*=65535.0f;
+	int i;
 	for (i=0;i<count;++i) {
 		float value=Data[i];
 		value-=ValueOffset;

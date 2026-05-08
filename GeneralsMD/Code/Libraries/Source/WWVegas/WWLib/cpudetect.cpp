@@ -23,6 +23,9 @@
 #include "mpu.h"
 #pragma warning (disable : 4201)	// Nonstandard extension - nameless struct
 #include <windows.h>
+#ifdef _M_X64
+#include <intrin.h>
+#endif
 #include "systimer.h"
 
 #ifdef _UNIX
@@ -123,10 +126,24 @@ const char* CPUDetectClass::Get_Processor_Manufacturer_Name()
 	return ManufacturerNames[ProcessorManufacturer];
 }
 
+#ifndef _M_X64
 #define ASM_RDTSC _asm _emit 0x0f _asm _emit 0x31
+#endif
 
 static unsigned Calculate_Processor_Speed(__int64& ticks_per_second)
 {
+#if defined(_M_X64)
+	unsigned long long t0 = __rdtsc();
+	unsigned start = TIMEGETTIME();
+	unsigned elapsed;
+	unsigned long long t1;
+	while ((elapsed = TIMEGETTIME() - start) < 200) {
+		t1 = __rdtsc();
+	}
+	unsigned long long t = t1 - t0;
+	ticks_per_second = (__int64)((1000.0 / (double)elapsed) * (double)t);
+	return (unsigned)((double)t / (double)(elapsed * 1000));
+#else
 	struct {
 		unsigned timer0_h;
 		unsigned timer0_l;
@@ -165,6 +182,7 @@ static unsigned Calculate_Processor_Speed(__int64& ticks_per_second)
 	__int64 t=*(__int64*)&Time.timer1_h-*(__int64*)&Time.timer0_h;
 	ticks_per_second=(__int64)((1000.0/(double)elapsed)*(double)t);	// Ticks per second
 	return unsigned((double)t/(double)(elapsed*1000));
+#endif
 }
 
 void CPUDetectClass::Init_Processor_Speed()
@@ -826,7 +844,10 @@ void CPUDetectClass::Init_CPUID_Instruction()
    // because CodeWarrior seems to have problems with
    // the command (huh?)
 
-#ifdef WIN32
+#if defined(_M_X64)
+   // CPUID is always available on x64
+   cpuid_available = 1;
+#elif defined(WIN32)
    __asm
    {
       mov cpuid_available, 0	// clear flag
@@ -917,16 +938,29 @@ void CPUDetectClass::Init_Memory()
 
 void CPUDetectClass::Init_OS()
 {
-	OSVERSIONINFO os;
 #ifdef WIN32
-   os.dwOSVersionInfoSize = sizeof(os);
-	GetVersionEx(&os);
+	OSVERSIONINFOW os = {};
+	os.dwOSVersionInfoSize = sizeof(os);
+	// RtlGetVersion in ntdll.dll always returns true version numbers, unlike GetVersionExW
+	// which respects application compatibility shims. Use GetProcAddress to avoid header issues.
+	{
+		using RtlGetVersionFn = LONG (WINAPI*)(OSVERSIONINFOW*);
+		if (HMODULE ntdll = GetModuleHandleW(L"ntdll.dll"))
+		{
+			auto fn = reinterpret_cast<RtlGetVersionFn>(GetProcAddress(ntdll, "RtlGetVersion"));
+			if (fn) fn(&os);
+		}
+	}
 
    OSVersionNumberMajor = os.dwMajorVersion;
    OSVersionNumberMinor = os.dwMinorVersion;
    OSVersionBuildNumber = os.dwBuildNumber;
    OSVersionPlatformId  = os.dwPlatformId;
-   OSVersionExtraInfo   = os.szCSDVersion;
+   {
+      char csdBuf[128] = {};
+      WideCharToMultiByte(CP_ACP, 0, os.szCSDVersion, -1, csdBuf, sizeof(csdBuf), NULL, NULL);
+      OSVersionExtraInfo = csdBuf;
+   }
 #elif defined(_UNIX)
 #warning FIX Init_OS()
 #endif
@@ -946,7 +980,16 @@ bool CPUDetectClass::CPUID(
 	unsigned u_ecx;
 	unsigned u_edx;
 
-#ifdef WIN32
+#if defined(_M_X64)
+   {
+      int info[4];
+      __cpuid(info, (int)cpuid_type);
+      u_eax = (unsigned)info[0];
+      u_ebx = (unsigned)info[1];
+      u_ecx = (unsigned)info[2];
+      u_edx = (unsigned)info[3];
+   }
+#elif defined(WIN32)
    __asm
    {
       pushad
@@ -1068,7 +1111,7 @@ void CPUDetectClass::Init_Processor_Log()
 	}
 
 	if (CPUDetectClass::Get_L1_Instruction_Trace_Cache_Size()) {
-		SYSLOG(("L1 Instruction Trace Cache: %d way set associative, %dk µOPs\r\n",
+		SYSLOG(("L1 Instruction Trace Cache: %d way set associative, %dk ï¿½OPs\r\n",
 			CPUDetectClass::Get_L1_Instruction_Cache_Set_Associative(),
 			CPUDetectClass::Get_L1_Instruction_Cache_Size()/1024));
 	}

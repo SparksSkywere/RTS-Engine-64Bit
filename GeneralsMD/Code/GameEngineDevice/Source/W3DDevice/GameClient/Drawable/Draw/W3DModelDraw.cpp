@@ -690,8 +690,8 @@ void ModelConditionInfo::validateCachedBones(RenderObjClass* robj, Real scale) c
 	{
 		if (!doSingleBoneName(robj, *it, m_pristineBones))
 		{
-			// DO crash here, since we specifically requested this bone for this model
-			DEBUG_CRASH(("*** ASSET ERROR: public bone '%s' (and variations thereof) not found in model %s!\n",it->str(),m_modelName.str()));
+			// Log the asset error but don't crash — missing bones in stock models should not halt the game
+			DEBUG_LOG(("*** ASSET ERROR: public bone '%s' (and variations thereof) not found in model %s!\n",it->str(),m_modelName.str()));
 		}
 		//else
 		//{
@@ -849,7 +849,11 @@ void ModelConditionInfo::validateWeaponBarrelInfo() const
 				}
 			}	// if empty
 
-			DEBUG_ASSERTCRASH(!(m_modelName.isNotEmpty() && m_weaponBarrelInfoVec[wslot].empty()), ("*** ASSET ERROR: No fx bone named '%s' found in model %s!\n",fxBoneName.str(),m_modelName.str()));
+			if (m_modelName.isNotEmpty() && fxBoneName.isNotEmpty() && m_weaponBarrelInfoVec[wslot].empty())
+			{
+				// Some stock model variants don't contain all requested FX bones; log and continue.
+				DEBUG_LOG(("*** ASSET ERROR: No fx bone named '%s' found in model %s!\n",fxBoneName.str(),m_modelName.str()));
+			}
 		}
 	}
 	m_validStuff |= BARRELS_VALID;
@@ -1091,13 +1095,13 @@ void W3DModelDrawModuleData::validateStuffForTimeAndWeather(const Drawable* draw
 
 		Bool a = false;
 		Bool b = false;
-		for (c_it = m_conditionStates.begin(); c_it != m_conditionStates.end(); ++c_it)
+		for (ModelConditionVector::iterator c_it2 = m_conditionStates.begin(); c_it2 != m_conditionStates.end(); ++c_it2)
 		{
 
-			if (!a && c_it->m_transitionKey == src && c_it->matchesMode(night, snowy))
+			if (!a && c_it2->m_transitionKey == src && c_it2->matchesMode(night, snowy))
 				a = true;
 
-			if (!b && c_it->m_transitionKey == dst && c_it->matchesMode(night, snowy))
+			if (!b && c_it2->m_transitionKey == dst && c_it2->matchesMode(night, snowy))
 				b = true;
 
 		}
@@ -1232,7 +1236,7 @@ enum AnimParseType
 //-------------------------------------------------------------------------------------------------
 static void parseAnimation(INI* ini, void *instance, void * /*store*/, const void* userData)
 {
-	AnimParseType animType = (AnimParseType)(UnsignedInt)userData;
+	AnimParseType animType = static_cast<AnimParseType>(reinterpret_cast<uintptr_t>(userData));
 
 	AsciiString animName = ini->getNextAsciiString();
 	animName.toLower();
@@ -1446,7 +1450,7 @@ void W3DModelDrawModuleData::parseConditionState(INI* ini, void *instance, void 
 
 	ModelConditionInfo info;
 	W3DModelDrawModuleData* self = (W3DModelDrawModuleData*)instance;
-	ParseCondStateType cst = (ParseCondStateType)(UnsignedInt)userData;
+	ParseCondStateType cst = static_cast<ParseCondStateType>(reinterpret_cast<uintptr_t>(userData));
 	switch (cst)
 	{
 		case PARSE_DEFAULT:
@@ -3447,8 +3451,9 @@ Int W3DModelDraw::getPristineBonePositionsForConditionState(
 
 	Int posCount = 0;
 	Int endIndex = (startIndex == 0) ? 0 : 99;	
+	Int i;
 	char buffer[256];
-	for (Int i = startIndex; i <= endIndex; ++i)
+	for (i = startIndex; i <= endIndex; ++i)
 	{
 		if (i == 0)
 			strcpy(buffer, boneNamePrefix);
@@ -3603,8 +3608,9 @@ Int W3DModelDraw::getCurrentBonePositions(
 
 	Int posCount = 0;
 	Int endIndex = (startIndex == 0) ? 0 : 99;	
+	Int i;
 	char buffer[256];
-	for (Int i = startIndex; i <= endIndex; ++i)
+	for (i = startIndex; i <= endIndex; ++i)
 	{
 		if (i == 0)
 			strcpy(buffer, boneNamePrefix);
@@ -4297,13 +4303,14 @@ void W3DModelDrawModuleData::xfer( Xfer *x )
 #endif
 		if (info->m_validStuff)
 		{
+			Int i;
 			for (PristineBoneInfoMap::iterator bit = info->m_pristineBones.begin(); bit != info->m_pristineBones.end(); ++bit)
 			{
 				PristineBoneInfo *bone = &(bit->second);
 				x->xferInt(&(bone->boneIndex));
 				x->xferUser(&(bone->mtx), sizeof(Matrix3D));
 			}
-			for (Int i=0; i<MAX_TURRETS; ++i)
+			for (i=0; i<MAX_TURRETS; ++i)
 			{
 				x->xferInt(&(info->m_turrets[i].m_turretAngleBone));
 				x->xferInt(&(info->m_turrets[i].m_turretPitchBone));

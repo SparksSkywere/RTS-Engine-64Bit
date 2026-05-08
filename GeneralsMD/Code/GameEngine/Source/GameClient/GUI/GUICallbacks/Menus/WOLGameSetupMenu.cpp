@@ -539,7 +539,7 @@ static void handleColorSelection(int index)
 	GameWindow *combo = comboBoxColor[index];
 	Int color, selIndex;
 	GadgetComboBoxGetSelectedPos(combo, &selIndex);
-	color = (Int)GadgetComboBoxGetItemData(combo, selIndex);
+	color = static_cast<Int>(reinterpret_cast<intptr_t>(GadgetComboBoxGetItemData(combo, selIndex)));
 
 	GameInfo *myGame = TheGameSpyInfo->getCurrentStagingRoom();
 
@@ -602,7 +602,7 @@ static void handlePlayerTemplateSelection(int index)
 	GameWindow *combo = comboBoxPlayerTemplate[index];
 	Int playerTemplate, selIndex;
 	GadgetComboBoxGetSelectedPos(combo, &selIndex);
-	playerTemplate = (Int)GadgetComboBoxGetItemData(combo, selIndex);
+	playerTemplate = static_cast<Int>(reinterpret_cast<intptr_t>(GadgetComboBoxGetItemData(combo, selIndex)));
 	GameInfo *myGame = TheGameSpyInfo->getCurrentStagingRoom();
 
 	if (myGame)
@@ -727,7 +727,7 @@ static void handleTeamSelection(int index)
 	GameWindow *combo = comboBoxTeam[index];
 	Int team, selIndex;
 	GadgetComboBoxGetSelectedPos(combo, &selIndex);
-	team = (Int)GadgetComboBoxGetItemData(combo, selIndex);
+	team = static_cast<Int>(reinterpret_cast<intptr_t>(GadgetComboBoxGetItemData(combo, selIndex)));
 	GameInfo *myGame = TheGameSpyInfo->getCurrentStagingRoom();
 
 	if (myGame)
@@ -773,7 +773,7 @@ static void handleStartingCashSelection()
     GadgetComboBoxGetSelectedPos(comboBoxStartingCash, &selIndex);
     
     Money startingCash;
-    startingCash.deposit( (UnsignedInt)GadgetComboBoxGetItemData( comboBoxStartingCash, selIndex ), FALSE );
+    startingCash.deposit( static_cast<UnsignedInt>(reinterpret_cast<uintptr_t>(GadgetComboBoxGetItemData( comboBoxStartingCash, selIndex ))), FALSE );
     myGame->setStartingCash( startingCash );
     myGame->resetAccepted();
     
@@ -898,6 +898,7 @@ static void StartPressed(void)
 	// Check for too few teams
 	int numRandom = 0;
 	std::set<Int> teams; 
+	Int i;
 	for (i=0; i<MAX_SLOTS; ++i)
 	{
 		GameSlot *slot = myGame->getSlot(i);
@@ -1023,9 +1024,10 @@ void WOLDisplayGameOptions( void )
     GadgetCheckBoxSetChecked( checkBoxLimitSuperweapons, limitSuperweapons );
   
   Int itemCount = GadgetComboBoxGetLength(comboBoxStartingCash);
-  for ( Int index = 0; index < itemCount; index++ )
+  Int index;
+  for ( index = 0; index < itemCount; index++ )
   {
-    Int value  = (Int)GadgetComboBoxGetItemData(comboBoxStartingCash, index);
+    Int value  = static_cast<Int>(reinterpret_cast<intptr_t>(GadgetComboBoxGetItemData(comboBoxStartingCash, index)));
     if ( value == theGame->getStartingCash().countMoney() )
     {
       // Note: must check if combobox is already correct to avoid infinite recursion
@@ -2582,7 +2584,7 @@ WindowMsgHandledType WOLGameSetupMenuSystem( GameWindow *window, UnsignedInt msg
 														 WindowMsgData mData1, WindowMsgData mData2 )
 {
 	UnicodeString txtInput;
-	static buttonCommunicatorID = NAMEKEY_INVALID;
+	static NameKeyType buttonCommunicatorID = NAMEKEY_INVALID;
 	switch( msg )
 	{
 		//-------------------------------------------------------------------------------------------------	
@@ -2690,7 +2692,7 @@ WindowMsgHandledType WOLGameSetupMenuSystem( GameWindow *window, UnsignedInt msg
 
 				GameWindow *control = (GameWindow *)mData1;
 				Int controlID = control->winGetWindowId();
-				static buttonCommunicatorID = NAMEKEY("GameSpyGameOptionsMenu.wnd:ButtonCommunicator");
+				static NameKeyType buttonCommunicatorID = NAMEKEY("GameSpyGameOptionsMenu.wnd:ButtonCommunicator");
 				if ( controlID == buttonBackID )
 				{
 					savePlayerInfo();

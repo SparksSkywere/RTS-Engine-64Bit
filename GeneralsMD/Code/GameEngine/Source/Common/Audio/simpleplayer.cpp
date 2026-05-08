@@ -17,6 +17,7 @@
 */
 
 #include <tchar.h>
+#include <stdio.h>
 #include "Common/Debug.h"
 #include "Common/SimplePlayer.h"
 #include "Common/URLLaunch.h"
@@ -186,7 +187,6 @@ HRESULT STDMETHODCALLTYPE CSimplePlayer::OnSample(
     MMRESULT mmr;
 
     mmr = waveOutPrepareHeader( m_hwo, pwh, sizeof(WAVEHDR) );
-    mmr = MMSYSERR_NOERROR;
 
     if( mmr != MMSYSERR_NOERROR )
     {
@@ -197,7 +197,6 @@ HRESULT STDMETHODCALLTYPE CSimplePlayer::OnSample(
     }
 
     mmr = waveOutWrite( m_hwo, pwh, sizeof(WAVEHDR) );
-    mmr = MMSYSERR_NOERROR;
 
     if( mmr != MMSYSERR_NOERROR )
     {
@@ -470,10 +469,9 @@ HRESULT CSimplePlayer::Play( LPCWSTR pszUrl, DWORD dwSecDuration, HANDLE hComple
     mmr = waveOutOpen( &m_hwo,
                        WAVE_MAPPER, 
                        &m_wfx, 
-                       (DWORD)WaveProc, 
-                       (DWORD)this, 
+                       (DWORD_PTR)WaveProc, 
+                       (DWORD_PTR)this, 
                        CALLBACK_FUNCTION );
-    mmr = MMSYSERR_NOERROR;
 
     if( mmr != MMSYSERR_NOERROR  )
     {
@@ -589,8 +587,9 @@ HRESULT STDMETHODCALLTYPE CSimplePlayer::OnStatus(
             if( SUCCEEDED( hr ) )
             {
                 WCHAR wszURL[ 0x1000 ];
+                const WCHAR *licenseUrl = reinterpret_cast<const WCHAR *>(pValue);
 
-                swprintf( wszURL, L"%s&filename=%s&embedded=false", pValue, pwszEscapedURL );
+                _snwprintf( wszURL, _countof( wszURL ), L"%ls&filename=%ls&embedded=false", licenseUrl, pwszEscapedURL );
 
                 hr = LaunchURL( wszURL );
 
@@ -640,7 +639,7 @@ HRESULT CSimplePlayer::Close()
 
 
 ///////////////////////////////////////////////////////////////////////////////
-void CSimplePlayer::OnWaveOutMsg( UINT uMsg, DWORD dwParam1, DWORD dwParam2 )
+void CSimplePlayer::OnWaveOutMsg( UINT uMsg, DWORD_PTR dwParam1, DWORD_PTR dwParam2 )
 {
     if( WOM_DONE == uMsg )
     {
@@ -648,7 +647,7 @@ void CSimplePlayer::OnWaveOutMsg( UINT uMsg, DWORD dwParam1, DWORD dwParam2 )
         // add the wave header to ready-to-free list for the caller
         // to pick up and free in the next OnSample call
         //
-        AddWaveHeader( ( LPWAVEHDR )dwParam1 );
+        AddWaveHeader( reinterpret_cast<LPWAVEHDR>(dwParam1) );
 
         InterlockedDecrement( &m_cBuffersOutstanding );
 
@@ -664,11 +663,11 @@ void CSimplePlayer::OnWaveOutMsg( UINT uMsg, DWORD dwParam1, DWORD dwParam2 )
 void CALLBACK CSimplePlayer::WaveProc( 
                                 HWAVEOUT hwo, 
                                 UINT uMsg, 
-                                DWORD dwInstance, 
-                                DWORD dwParam1, 
-                                DWORD dwParam2 )
+                                DWORD_PTR dwInstance, 
+                                DWORD_PTR dwParam1, 
+                                DWORD_PTR dwParam2 )
 {
-    CSimplePlayer *pThis = (CSimplePlayer*)dwInstance;
+    CSimplePlayer *pThis = reinterpret_cast<CSimplePlayer *>(dwInstance);
 
     pThis->OnWaveOutMsg( uMsg, dwParam1, dwParam2 );
 }

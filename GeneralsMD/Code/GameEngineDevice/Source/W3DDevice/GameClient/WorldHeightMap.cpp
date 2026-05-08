@@ -67,6 +67,39 @@
 // -----------------------------------------------------------
 static AsciiString validateName(AsciiString n, Int flags)
 {
+	(void)flags;
+	n.trim();
+
+	// Some legacy WorldBuilder maps serialize capturable civilian structures using
+	// display-style names with spaces instead of the internal template token.
+	if (!n.compareNoCase("Tech Center") || !n.compareNoCase("Tech Building")) {
+		if( TheThingFactory != NULL && TheThingFactory->findTemplate( AsciiString("TechBuilding"), FALSE ) != NULL ) {
+			DEBUG_LOG(("WorldHeightMap::validateName - remapping legacy map object '%s' to 'TechBuilding'\n", n.str()));
+			return AsciiString("TechBuilding");
+		}
+		DEBUG_LOG(("WorldHeightMap::validateName - leaving legacy map object '%s' unchanged because no 'TechBuilding' template exists in this data set\n", n.str()));
+		return n;
+	}
+	if (!n.compareNoCase("Tech Oil Derrick")) {
+		DEBUG_LOG(("WorldHeightMap::validateName - remapping legacy map object '%s' to 'TechOilDerrick'\n", n.str()));
+		return AsciiString("TechOilDerrick");
+	}
+	if (!n.compareNoCase("Tech Oil Refinery")) {
+		DEBUG_LOG(("WorldHeightMap::validateName - remapping legacy map object '%s' to 'TechOilRefinery'\n", n.str()));
+		return AsciiString("TechOilRefinery");
+	}
+	if (!n.compareNoCase("Tech Hospital")) {
+		DEBUG_LOG(("WorldHeightMap::validateName - remapping legacy map object '%s' to 'TechHospital'\n", n.str()));
+		return AsciiString("TechHospital");
+	}
+	if (!n.compareNoCase("Tech Repair Bay") || !n.compareNoCase("Repair Bay")) {
+		DEBUG_LOG(("WorldHeightMap::validateName - remapping legacy map object '%s' to 'TechRepairbay'\n", n.str()));
+		return AsciiString("TechRepairbay");
+	}
+	if (!n.compareNoCase("Tech Reinforcement Pad")) {
+		DEBUG_LOG(("WorldHeightMap::validateName - remapping legacy map object '%s' to 'TechReinforcementPad'\n", n.str()));
+		return AsciiString("TechReinforcementPad");
+	}
 
 	return n;
 
@@ -181,32 +214,22 @@ void MapObject::validate(void)
 
 void MapObject::verifyValidTeam(void)
 {
-	// if this map object has a valid team, then do nothing.
-	// if it has an invalid team, the place it on the default neutral team, (by clearing the 
-	// existing team name.)
+	// if this map object has a valid player/team owner, then do nothing.
+	// if it has an invalid owner, clear it so startup can safely fall back.
 	Bool exists;
 	AsciiString teamName = getProperties()->getAsciiString(TheKey_originalOwner, &exists);
 	if (exists) {
 		Bool valid = false;
 
-		int numSides = TheSidesList->getNumTeams();
-
-		for (int i = 0; i < numSides; ++i) {
-			TeamsInfo *teamInfo = TheSidesList->getTeamInfo(i);
-			if (!teamInfo) {
-				continue;
-			}
-			
-			Bool itBetter;
-			AsciiString testAgainstTeamName = teamInfo->getDict()->getAsciiString(TheKey_teamName, &itBetter);
-			if (itBetter) {
-				if (testAgainstTeamName.compare(teamName) == 0) {
-					valid = true;
-				}
+		if( TheSidesList != NULL ) {
+			if( TheSidesList->findTeamInfo( teamName ) != NULL || TheSidesList->findSideInfo( teamName ) != NULL ) {
+				valid = true;
 			}
 		}
 
 		if (!valid) {
+			DEBUG_LOG(("MapObject::verifyValidTeam - owner '%s' for object '%s' is not a known player/team on this map; clearing originalOwner\n",
+				teamName.str(), getName().str()));
 			getProperties()->remove(TheKey_originalOwner);
 		}
 	}
@@ -1278,11 +1301,12 @@ Bool WorldHeightMap::ParseObjectData(DataChunkInput &file, DataChunkInfo *info, 
 		return true;
 	}
 
+	AsciiString validatedName = validateName(name, flags);
 	MapObject *pThisOne;
 	
 	// create the map object
-	pThisOne = newInstance( MapObject )( loc, name, angle, flags, &d, 
-														TheThingFactory->findTemplate( name, FALSE ) );
+	pThisOne = newInstance( MapObject )( loc, validatedName, angle, flags, &d, 
+														TheThingFactory->findTemplate( validatedName, FALSE ) );
 
 //DEBUG_LOG(("obj %s owner %s\n",name.str(),d.getAsciiString(TheKey_originalOwner).str()));
 

@@ -41,13 +41,8 @@
 #ifndef SHDHWSHADER_H
 #define SHDHWSHADER_H
 
-#ifndef _D3D8_H_
-#include <d3d8.h>
-#endif
-
-#ifndef __D3DX8_H__
-#include <d3dx8.h>
-#endif
+#include <d3d9.h>
+#include <d3dx9.h>
 
 #ifndef SHDHW_CONSTANTS_H
 #include "shdhw_constants.h"
@@ -63,7 +58,7 @@ public:
 	ShdHWShader() : Shader(0) {}
 	virtual ~ShdHWShader() {}
 
-	DWORD Peek_Shader() const { return Shader; }
+	UINT_PTR Peek_Shader() const { return Shader; }
 
 protected:
 
@@ -76,7 +71,7 @@ protected:
 		LPD3DXBUFFER*	shader_code
 	);
 
-	DWORD Shader;
+	UINT_PTR Shader;
 };
 
 class ShdHWVertexShader : public ShdHWShader
@@ -84,13 +79,13 @@ class ShdHWVertexShader : public ShdHWShader
 public:
 	virtual ~ShdHWVertexShader();
 
-	DWORD Create
+	UINT_PTR Create
 	(
 		char* file_name, 
 		DWORD* vertex_shader_declaration
 	);
 
-	DWORD Create
+	UINT_PTR Create
 	(
 		DWORD* shader_code, 
 		DWORD* vertex_shader_declaration
@@ -124,8 +119,8 @@ class ShdHWPixelShader : public ShdHWShader
 public:
 	virtual ~ShdHWPixelShader();
 
-	DWORD Create(char* file_name);
-	DWORD Create(DWORD* shader_code);
+	UINT_PTR Create(char* file_name);
+	UINT_PTR Create(DWORD* shader_code);
 
 	void Destroy();
 };

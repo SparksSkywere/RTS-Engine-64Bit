@@ -22,6 +22,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include <stdlib.h>
+#include <cstddef>
 #include <windows.h>
 #include <assert.h>
 
@@ -32,6 +33,17 @@
 
 // DEFINES ////////////////////////////////////////////////////////////////////////////////////////
 enum { MOUSE_BUFFER_SIZE = 256, };
+
+enum DirectInputMouseOffset
+{
+	DI_MOUSE_OFFSET_BUTTON0 = (int)offsetof( DIMOUSESTATE2, rgbButtons[0] ),
+	DI_MOUSE_OFFSET_BUTTON1 = (int)offsetof( DIMOUSESTATE2, rgbButtons[1] ),
+	DI_MOUSE_OFFSET_BUTTON2 = (int)offsetof( DIMOUSESTATE2, rgbButtons[2] ),
+	DI_MOUSE_OFFSET_BUTTON3 = (int)offsetof( DIMOUSESTATE2, rgbButtons[3] ),
+	DI_MOUSE_OFFSET_X = (int)offsetof( DIMOUSESTATE2, lX ),
+	DI_MOUSE_OFFSET_Y = (int)offsetof( DIMOUSESTATE2, lY ),
+	DI_MOUSE_OFFSET_Z = (int)offsetof( DIMOUSESTATE2, lZ )
+};
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // PRIVATE FUNCTIONS //////////////////////////////////////////////////////////////////////////////
@@ -201,7 +213,7 @@ UnsignedByte DirectInputMouse::getMouseEvent( MouseIO *result, Bool flush )
 	DWORD num;
 
 	/* set these to defaults */
-	result->leftState = result->middleState = result->rightState = FALSE;
+	result->leftState = result->middleState = result->rightState = MBS_Up;
 	result->leftFrame = result->middleFrame = result->rightFrame = 0;
 	result->pos.x = result->pos.y = result->wheelPos = 0;
 
@@ -281,33 +293,33 @@ void DirectInputMouse::mapDirectInputMouse( MouseIO *mouse,
 
 	switch( mdat->dwOfs )
 	{
-		case DIMOFS_BUTTON0:
-			mouse->leftState = (( mdat->dwData & 0x0080 ) ? TRUE : FALSE);
+		case DI_MOUSE_OFFSET_BUTTON0:
+			mouse->leftState = (( mdat->dwData & 0x0080 ) ? MBS_Down : MBS_Up);
 			mouse->leftFrame = mdat->dwSequence;
 			break;
 
-		case DIMOFS_BUTTON1:
-			mouse->rightState = (( mdat->dwData & 0x0080 ) ? TRUE : FALSE);
+		case DI_MOUSE_OFFSET_BUTTON1:
+			mouse->rightState = (( mdat->dwData & 0x0080 ) ? MBS_Down : MBS_Up);
 			mouse->rightFrame = mdat->dwSequence;
 			break;
 
-		case DIMOFS_BUTTON2:
-			mouse->middleState = (( mdat->dwData & 0x0080 ) ? TRUE : FALSE);
+		case DI_MOUSE_OFFSET_BUTTON2:
+			mouse->middleState = (( mdat->dwData & 0x0080 ) ? MBS_Down : MBS_Up);
 			mouse->middleFrame = mdat->dwSequence;
 			break;
 
-		case DIMOFS_BUTTON3:
+		case DI_MOUSE_OFFSET_BUTTON3:
 			break;
 
-		case DIMOFS_X:
+		case DI_MOUSE_OFFSET_X:
 			mouse->pos.x = mdat->dwData;
 			break;
 
-		case DIMOFS_Y:
+		case DI_MOUSE_OFFSET_Y:
 			mouse->pos.y = mdat->dwData;
 			break;
 
-		case DIMOFS_Z:
+		case DI_MOUSE_OFFSET_Z:
 			mouse->wheelPos = mdat->dwData;
 			break;
 	}

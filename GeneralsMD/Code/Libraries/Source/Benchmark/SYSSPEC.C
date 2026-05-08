@@ -363,6 +363,11 @@ else
 return(fhandle);
 #endif
 
+        if (errorcode)
+                *errorcode = ERROR_FILEOPEN;
+
+        return -1;
+
 }
 
 /****************************

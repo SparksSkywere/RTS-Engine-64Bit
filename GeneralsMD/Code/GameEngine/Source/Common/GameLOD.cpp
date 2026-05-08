@@ -89,9 +89,11 @@ StaticGameLODInfo::StaticGameLODInfo(void)
 {
 	m_minFPS=0;
 	m_minProcessorFPS=0;
-	m_sampleCount2D=6;
-	m_sampleCount3D=24;
-	m_streamCount=2;
+	// Modern backends can sustain more simultaneous voices than the 2003 defaults.
+	// Keep the combined 2D+3D pool within the OpenAL bridge's 64-source limit.
+	m_sampleCount2D=24;
+	m_sampleCount3D=40;
+	m_streamCount=8;
 	m_maxParticleCount=2500;
 
 	m_useShadowVolumes=TRUE;
@@ -107,7 +109,11 @@ StaticGameLODInfo::StaticGameLODInfo(void)
 	m_useEmissiveNightMaterials=TRUE;
 	m_useHeatEffects=TRUE;
 	m_textureReduction = 0;	//none
+#ifdef _DEBUG
+	m_useFpsLimit = FALSE;
+#else
 	m_useFpsLimit = TRUE;
+#endif
 	m_enableDynamicLOD = TRUE;
 	m_useTrees = TRUE;
 }

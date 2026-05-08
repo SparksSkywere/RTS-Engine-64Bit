@@ -715,8 +715,9 @@ WindowMsgHandledType GadgetListBoxInput( GameWindow *window, UnsignedInt msg,
 									position = 0;
 								
 								ListEntryCell *cell = NULL;
+								Int j;
 								// go through the columns until we find a column with text
-								for(Int j = 0; j < list->columns; ++j)
+								for(j = 0; j < list->columns; ++j)
 								{
 									cell = &list->listData[position].cell[j];
 									if(cell && cell->cellType == LISTBOX_TEXT && cell->data)
@@ -925,12 +926,18 @@ WindowMsgHandledType GadgetListBoxInput( GameWindow *window, UnsignedInt msg,
 
 			if( BitTest( instData->getStyle(), GWS_MOUSE_TRACK ) ) 
 			{
+				Int row = -1;
+				Int column = -1;
+				Int mousex = mData1 & 0xFFFF;
+				Int mousey = mData1 >> 16;
+				getListboxEntryBasedOnCoord( window, mousex, mousey, row, column );
+				list->mouseOverPos = row;
 
 				BitSet( instData->m_state, WIN_STATE_HILITED );
 				TheWindowManager->winSendSystemMsg( window->winGetOwner(), 
-																						GBM_MOUSE_ENTERING,
-																						(WindowMsgData)window, 
-																						0 );
+																		GBM_MOUSE_ENTERING,
+																		(WindowMsgData)window, 
+																		0 );
 				//TheWindowManager->winSetFocus( window );
 
 			}  // end if
@@ -940,17 +947,35 @@ WindowMsgHandledType GadgetListBoxInput( GameWindow *window, UnsignedInt msg,
 		}  //  end mouse entering
 
 		// ------------------------------------------------------------------------
+		case GWM_MOUSE_POS:
+		{
+			if( BitTest( instData->getStyle(), GWS_MOUSE_TRACK ) )
+			{
+				Int row = -1;
+				Int column = -1;
+				Int mousex = mData1 & 0xFFFF;
+				Int mousey = mData1 >> 16;
+				getListboxEntryBasedOnCoord( window, mousex, mousey, row, column );
+				list->mouseOverPos = row;
+			}
+
+			break;
+
+		}
+
+		// ------------------------------------------------------------------------
 		case GWM_MOUSE_LEAVING:
 		{
 
 			if( BitTest( instData->getStyle(), GWS_MOUSE_TRACK )) 
 			{
 
+				list->mouseOverPos = -1;
 				BitClear( instData->m_state, WIN_STATE_HILITED );
 				TheWindowManager->winSendSystemMsg( window->winGetOwner(), 
-																						GBM_MOUSE_LEAVING,
-																						(WindowMsgData)window, 
-																						0 );
+																		GBM_MOUSE_LEAVING,
+																		(WindowMsgData)window, 
+																		0 );
 			}  // end if
 
 			break;
@@ -962,16 +987,10 @@ WindowMsgHandledType GadgetListBoxInput( GameWindow *window, UnsignedInt msg,
 
 			if (BitTest( instData->getStyle(), GWS_MOUSE_TRACK ) )
 				TheWindowManager->winSendSystemMsg( window->winGetOwner(), 
-																						GGM_LEFT_DRAG,
-																						(WindowMsgData)window, 
-																						0 );
+																		GGM_LEFT_DRAG,
+																		(WindowMsgData)window, 
+																		0 );
 			break;
-
-		// ------------------------------------------------------------------------
-		case GWM_LEFT_DOWN:
-			doAudioFeedback(window);
-			// we want to eat the down... so we may receive the up.
-			return MSG_HANDLED;
 
 		//-------------------------------------------------------------------------
 		default:
@@ -1203,12 +1222,18 @@ WindowMsgHandledType GadgetListBoxMultiInput( GameWindow *window, UnsignedInt ms
 
 			if( BitTest( instData->getStyle(), GWS_MOUSE_TRACK ) ) 
 			{
+				Int row = -1;
+				Int column = -1;
+				Int mousex = mData1 & 0xFFFF;
+				Int mousey = mData1 >> 16;
+				getListboxEntryBasedOnCoord( window, mousex, mousey, row, column );
+				list->mouseOverPos = row;
 
 				BitSet( instData->m_state, WIN_STATE_HILITED );
 				TheWindowManager->winSendSystemMsg( window->winGetOwner(), 
-																						GBM_MOUSE_ENTERING,
-																						(WindowMsgData)window, 
-																						0 );
+																		GBM_MOUSE_ENTERING,
+																		(WindowMsgData)window, 
+																		0 );
 				//TheWindowManager->winSetFocus( window );
 
 			}  // end if
@@ -1218,17 +1243,35 @@ WindowMsgHandledType GadgetListBoxMultiInput( GameWindow *window, UnsignedInt ms
 		}  //  end mouse entering
 
 		// ------------------------------------------------------------------------
+		case GWM_MOUSE_POS:
+		{
+			if( BitTest( instData->getStyle(), GWS_MOUSE_TRACK ) )
+			{
+				Int row = -1;
+				Int column = -1;
+				Int mousex = mData1 & 0xFFFF;
+				Int mousey = mData1 >> 16;
+				getListboxEntryBasedOnCoord( window, mousex, mousey, row, column );
+				list->mouseOverPos = row;
+			}
+
+			break;
+
+		}
+
+		// ------------------------------------------------------------------------
 		case GWM_MOUSE_LEAVING:
 		{
 
 			if( BitTest( instData->getStyle(), GWS_MOUSE_TRACK )) 
 			{
 
+				list->mouseOverPos = -1;
 				BitClear( instData->m_state, WIN_STATE_HILITED );
 				TheWindowManager->winSendSystemMsg( window->winGetOwner(), 
-																						GBM_MOUSE_LEAVING,
-																						(WindowMsgData)window, 
-																						0 );
+																		GBM_MOUSE_LEAVING,
+																		(WindowMsgData)window, 
+																		0 );
 			}  // end if
 
 			break;
@@ -1240,9 +1283,9 @@ WindowMsgHandledType GadgetListBoxMultiInput( GameWindow *window, UnsignedInt ms
 
 			if (BitTest( instData->getStyle(), GWS_MOUSE_TRACK ) )
 				TheWindowManager->winSendSystemMsg( window->winGetOwner(), 
-																						GGM_LEFT_DRAG,
-																						(WindowMsgData)window, 
-																						0 );
+																		GGM_LEFT_DRAG,
+																		(WindowMsgData)window, 
+																		0 );
 			break;
 
 		// ------------------------------------------------------------------------
@@ -1290,7 +1333,7 @@ WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
 			if(pos->x >= list->columns || pos->y >= list->listLength || 
 					list->listData[pos->y].cell[pos->x].cellType != LISTBOX_TEXT)
 			{
-				tAndC->string = UnicodeString.TheEmptyString;
+				tAndC->string = UnicodeString::TheEmptyString;
 				tAndC->color = 0;				
 			}
 			else
@@ -1633,7 +1676,8 @@ WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
 			if( list->multiSelect )
 			{
 				// forced selections override the entire selection list.
-				for (Int i=0; i<selectCount && i<list->endPos; ++i)
+				Int i;
+				for (i=0; i<selectCount && i<list->endPos; ++i)
 				{
 					// don't select off the end
 					if (list->listLength <= selectList[i])
@@ -1750,6 +1794,7 @@ WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
 			//
 			// remove the display or links to images after the shift
 			//
+			Int i;
 			for(i = 0; i < (Int)mData1; i ++)
 			{
 				list->listData[list->endPos + i].cell = NULL;
@@ -1791,11 +1836,10 @@ WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
 		// ------------------------------------------------------------------------
 		case GLM_GET_SELECTION:
 		{
-			
 			if( list->multiSelect )
-				*(Int*)mData2 = (Int)list->selections;
+				*reinterpret_cast<Int **>(mData2) = list->selections;
 			else
-				*(Int*)mData2 = list->selectPos;
+				*reinterpret_cast<Int *>(mData2) = list->selectPos;
 
 			break;
 

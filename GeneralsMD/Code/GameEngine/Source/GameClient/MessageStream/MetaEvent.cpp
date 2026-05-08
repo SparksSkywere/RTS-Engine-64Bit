@@ -672,7 +672,7 @@ GameMessage::Type MetaMap::findGameMessageMetaType(const char* name)
 		if (stricmp(metaNames->name, name) == 0)
 			return (GameMessage::Type)metaNames->value;
 
-	DEBUG_CRASH(("MetaTypeName %s not found -- did you remember to add it to GameMessageMetaTypeNames[] ?", name));
+	DEBUG_LOG(("MetaTypeName %s not found in GameMessageMetaTypeNames[] (possibly not compiled in for this build config)\n", name));
 	return GameMessage::MSG_INVALID;
 }
 
@@ -709,7 +709,13 @@ MetaMapRec *MetaMap::getMetaMapRec(GameMessage::Type t)
 
 	GameMessage::Type t = TheMetaMap->findGameMessageMetaType(c);
 	if (t == GameMessage::MSG_INVALID)
-		throw INI_INVALID_DATA;
+	{
+		// Entry exists in the INI but has no corresponding code-side registration
+		// (e.g. guarded out by a preprocessor flag that isn't active). Drain the
+		// block so parsing continues cleanly rather than aborting the whole file.
+		ini->skipBlock();
+		return;
+	}
 
 	MetaMapRec *map = TheMetaMap->getMetaMapRec(t);
 	if (map == NULL)

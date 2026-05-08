@@ -1589,9 +1589,10 @@ void SphereMeshClass::Generate(float radius, int slices, int stacks)
 	fan_ct = 2;
 	fan_size = Slices+2;
 	fans = W3DNEWARRAY int[fan_size * fan_ct];
+	int ct;
 	
 	// Do Fan #1
-	for (int ct = 0; ct < fan_size; ct++) {
+	for (ct = 0; ct < fan_size; ct++) {
 		fans[ct] = ct;
 	}
 	//fans[ct] = 1;
@@ -1689,7 +1690,7 @@ void SphereMeshClass::Generate(float radius, int slices, int stacks)
 	}
 
 	// Make Sure ptr is where I expect it to be
-	WWASSERT(((int)out) == ((int)(tri_poly + face_ct)));
+	WWASSERT(out == (tri_poly + face_ct));
 
 	//
 	//	Fill in the DCG array

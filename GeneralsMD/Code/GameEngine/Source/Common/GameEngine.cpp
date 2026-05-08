@@ -678,6 +678,14 @@ void GameEngine::init( int argc, char *argv[] )
 		{
 			RELEASE_CRASHLOCALIZED("ERROR:D3DFailurePrompt", "ERROR:D3DFailureMessage");
 		}
+		else
+		{
+			// Previously fell through silently, leaving all subsequent subsystems un-initialized.
+			// Now crash loudly so we can see what ErrorCode was thrown and from where.
+			static char ecMsg[128];
+			_snprintf(ecMsg, sizeof(ecMsg), "Unhandled ErrorCode 0x%08X during initialization.", (unsigned int)ec);
+			RELEASE_CRASH((ecMsg));
+		}
 	}
 	catch (INIException e)
 	{
@@ -743,36 +751,217 @@ DECLARE_PERF_TIMER(GameEngine_update)
  * @todo Allow the client to run as fast as possible, but limit the execution
  * of TheNetwork and TheGameLogic to a fixed framerate.
  */
+// Tracks which subsystem was last entered so crash reports have context even when the
+// exception propagates past an inner try/catch (e.g. code between subsystem blocks).
+static const char* g_updateSubsystem = "(pre-subsystem)";
+
 void GameEngine::update( void )
 { 
 	USE_PERF_TIMER(GameEngine_update)
 	{
+		static Bool loggedRadarMissing = FALSE;
+#ifdef _DEBUG
+		UnsignedInt traceFrame = (TheGameLogic != NULL) ? TheGameLogic->getFrame() : 0;
+		Bool traceInGameStartup = (TheGameLogic != NULL) && TheGameLogic->isInGame() && traceFrame <= 1;
+		if (traceInGameStartup)
+		{
+			DEBUG_LOG(("GameEngine::update in-game frame=%u START\n", traceFrame));
+		}
+#endif
+
+		g_updateSubsystem = "TheRadar-fallback-init";
+		if (TheRadar == NULL && TheSubsystemList != NULL)
+		{
+			DEBUG_LOG(("GameEngine::update - TheRadar was NULL at frame start, attempting fallback initialization.\n"));
+			try { initSubsystem(TheRadar, "TheRadar", createRadar(), NULL); }
+			catch (INIException e)
+			{
+				if (e.mFailureMessage) RELEASE_CRASH((e.mFailureMessage));
+				else RELEASE_CRASH(("Exception during TheRadar fallback init in update"));
+			}
+			catch (...) { RELEASE_CRASH(("Exception during TheRadar fallback init in update")); }
+		}
 
 		{
 			
 			// VERIFY CRC needs to be in this code block.  Please to not pull TheGameLogic->update() inside this block.
 			VERIFY_CRC
 
-			TheRadar->UPDATE();
+				g_updateSubsystem = "TheRadar";
+				if (TheRadar != NULL)
+				{
+					try
+					{
+						TheRadar->UPDATE();
+				}
+				catch (INIException e)
+				{
+					if (e.mFailureMessage)
+						RELEASE_CRASH((e.mFailureMessage));
+					else
+						RELEASE_CRASH(("Uncaught Exception in TheRadar->UPDATE"));
+				}
+				catch (...)
+				{
+					RELEASE_CRASH(("Uncaught Exception in TheRadar->UPDATE"));
+				}
+			}
+			else if (!loggedRadarMissing)
+			{
+				DEBUG_LOG(("GameEngine::update - TheRadar is still NULL; skipping radar update to avoid a startup crash.\n"));
+				loggedRadarMissing = TRUE;
+			}
 
 			/// @todo Move audio init, update, etc, into GameClient update
-			
-			TheAudio->UPDATE();
-			TheGameClient->UPDATE();
-			TheMessageStream->propagateMessages();
+				g_updateSubsystem = "TheAudio";
+				if (TheAudio != NULL)
+				{
+					try
+					{
+						TheAudio->UPDATE();
+				}
+				catch (INIException e)
+				{
+					if (e.mFailureMessage)
+						RELEASE_CRASH((e.mFailureMessage));
+					else
+						RELEASE_CRASH(("Uncaught Exception in TheAudio->UPDATE"));
+				}
+				catch (...)
+				{
+					RELEASE_CRASH(("Uncaught Exception in TheAudio->UPDATE"));
+				}
+			}
+				g_updateSubsystem = "TheGameClient";
+				if (TheGameClient != NULL)
+				{
+					try
+					{
+						TheGameClient->UPDATE();
+#ifdef _DEBUG
+						if (traceInGameStartup)
+						{
+							DEBUG_LOG(("GameEngine::update in-game frame=%u - after TheGameClient->UPDATE()\n", traceFrame));
+						}
+#endif
+				}
+				catch (INIException e)
+				{
+					if (e.mFailureMessage)
+						RELEASE_CRASH((e.mFailureMessage));
+					else
+						RELEASE_CRASH(("Uncaught Exception in TheGameClient->UPDATE"));
+				}
+				catch (...)
+				{
+					RELEASE_CRASH(("Uncaught Exception in TheGameClient->UPDATE"));
+				}
+			}
+				g_updateSubsystem = "TheMessageStream";
+				if (TheMessageStream != NULL)
+				{
+					try
+					{
+						TheMessageStream->propagateMessages();
+#ifdef _DEBUG
+						if (traceInGameStartup)
+						{
+							DEBUG_LOG(("GameEngine::update in-game frame=%u - after TheMessageStream->propagateMessages()\n", traceFrame));
+						}
+#endif
+				}
+				catch (INIException e)
+				{
+					if (e.mFailureMessage)
+						RELEASE_CRASH((e.mFailureMessage));
+					else
+						RELEASE_CRASH(("Uncaught Exception in TheMessageStream->propagateMessages"));
+				}
+				catch (...)
+				{
+					RELEASE_CRASH(("Uncaught Exception in TheMessageStream->propagateMessages"));
+				}
+			}
 
-			if (TheNetwork != NULL)
-			{
-				TheNetwork->UPDATE();
+				g_updateSubsystem = "TheNetwork";
+				if (TheNetwork != NULL)
+				{
+					try
+					{
+						TheNetwork->UPDATE();
+#ifdef _DEBUG
+						if (traceInGameStartup)
+						{
+							DEBUG_LOG(("GameEngine::update in-game frame=%u - after TheNetwork->UPDATE()\n", traceFrame));
+						}
+#endif
+				}
+				catch (INIException e)
+				{
+					if (e.mFailureMessage)
+						RELEASE_CRASH((e.mFailureMessage));
+					else
+						RELEASE_CRASH(("Uncaught Exception in TheNetwork->UPDATE"));
+				}
+				catch (...)
+				{
+					RELEASE_CRASH(("Uncaught Exception in TheNetwork->UPDATE"));
+				}
 			}
 			 
-			TheCDManager->UPDATE();
+				g_updateSubsystem = "TheCDManager";
+				if (TheCDManager != NULL)
+				{
+					try
+					{
+						TheCDManager->UPDATE();
+#ifdef _DEBUG
+						if (traceInGameStartup)
+						{
+							DEBUG_LOG(("GameEngine::update in-game frame=%u - after TheCDManager->UPDATE()\n", traceFrame));
+						}
+#endif
+				}
+				catch (INIException e)
+				{
+					if (e.mFailureMessage)
+						RELEASE_CRASH((e.mFailureMessage));
+					else
+						RELEASE_CRASH(("Uncaught Exception in TheCDManager->UPDATE"));
+				}
+				catch (...)
+				{
+					RELEASE_CRASH(("Uncaught Exception in TheCDManager->UPDATE"));
+				}
+			}
 		}
 
 
-		if ((TheNetwork == NULL && !TheGameLogic->isGamePaused()) || (TheNetwork && TheNetwork->isFrameDataReady()))
+		g_updateSubsystem = "TheGameLogic-condition";
+		if (TheGameLogic != NULL && ((TheNetwork == NULL && !TheGameLogic->isGamePaused()) || (TheNetwork && TheNetwork->isFrameDataReady())))
 		{
-			TheGameLogic->UPDATE();
+			g_updateSubsystem = "TheGameLogic";
+			try
+			{
+				TheGameLogic->UPDATE();
+#ifdef _DEBUG
+				if (traceInGameStartup)
+				{
+					DEBUG_LOG(("GameEngine::update in-game frame=%u - after TheGameLogic->UPDATE() currentFrame=%u\n", traceFrame, TheGameLogic->getFrame()));
+				}
+#endif
+			}
+			catch (INIException e)
+			{
+				if (e.mFailureMessage)
+					RELEASE_CRASH((e.mFailureMessage));
+				else
+					RELEASE_CRASH(("Uncaught Exception in TheGameLogic->UPDATE"));
+			}
+			catch (...)
+			{
+				RELEASE_CRASH(("Uncaught Exception in TheGameLogic->UPDATE"));
+			}
 		}
 
 	}	// end perfGather
@@ -841,7 +1030,11 @@ void GameEngine::execute( void )
 					if (e.mFailureMessage)
 						RELEASE_CRASH((e.mFailureMessage));
 					else
-						RELEASE_CRASH(("Uncaught Exception in GameEngine::update"));
+					{
+						static char iniMsg[256];
+						_snprintf(iniMsg, sizeof(iniMsg), "Uncaught INIException (no message) in GameEngine::update [last subsystem: %s]", g_updateSubsystem);
+						RELEASE_CRASH((iniMsg));
+					}
 				}
 				catch (...)
 				{
@@ -854,7 +1047,9 @@ void GameEngine::execute( void )
 					catch (...)
 					{
 					}
-					RELEASE_CRASH(("Uncaught Exception in GameEngine::update"));
+					static char outerMsg[256];
+					_snprintf(outerMsg, sizeof(outerMsg), "Uncaught Exception in GameEngine::update [last subsystem: %s]", g_updateSubsystem);
+					RELEASE_CRASH((outerMsg));
 				}	// catch
 			}	// perf
 

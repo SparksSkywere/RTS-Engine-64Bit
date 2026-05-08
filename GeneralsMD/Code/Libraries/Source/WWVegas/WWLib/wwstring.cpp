@@ -102,12 +102,12 @@ StringClass::Get_String (int length, bool is_temp)
 				//
 				//	Grab this unused buffer for our string
 				//
-				unsigned temp_string=reinterpret_cast<unsigned>(m_TempStrings);
-				temp_string+=MAX_TEMP_BYTES*MAX_TEMP_STRING;
-				temp_string&=~(MAX_TEMP_BYTES*MAX_TEMP_STRING-1);
-				temp_string+=index*MAX_TEMP_BYTES;
-				temp_string+=sizeof(_HEADER);	// The buffer contains header as well, and it needs to be at the start
-				string=reinterpret_cast<char*>(temp_string);
+				size_t temp_string = reinterpret_cast<size_t>(m_TempStrings);
+				temp_string += MAX_TEMP_BYTES * MAX_TEMP_STRING;
+				temp_string &= ~(static_cast<size_t>(MAX_TEMP_BYTES * MAX_TEMP_STRING) - 1);
+				temp_string += static_cast<size_t>(index) * MAX_TEMP_BYTES;
+				temp_string += sizeof(_HEADER);	// The buffer contains header as well, and it needs to be at the start
+				string = reinterpret_cast<char *>(temp_string);
 
 				Set_Buffer_And_Allocated_Length (string, MAX_TEMP_LEN);
 				break;
@@ -197,8 +197,8 @@ StringClass::Free_String (void)
 {
 	if (m_Buffer != m_EmptyString) {
 
-		unsigned buffer_base=reinterpret_cast<unsigned>(m_Buffer-sizeof (StringClass::_HEADER));
-		unsigned temp_base=reinterpret_cast<unsigned>(m_TempStrings+MAX_TEMP_BYTES*MAX_TEMP_STRING);
+		size_t buffer_base = reinterpret_cast<size_t>(m_Buffer - sizeof(StringClass::_HEADER));
+		size_t temp_base = reinterpret_cast<size_t>(m_TempStrings + MAX_TEMP_BYTES * MAX_TEMP_STRING);
 
 		if ((buffer_base>>11)==(temp_base>>11)) {
 			m_Buffer[0] = 0;
@@ -209,8 +209,8 @@ StringClass::Free_String (void)
 			//
 			FastCriticalSectionClass::LockClass m(m_Mutex);
 
-			unsigned index=(buffer_base/MAX_TEMP_BYTES)&(MAX_TEMP_STRING-1);
-			unsigned mask=1<<index;
+			unsigned index = static_cast<unsigned>((buffer_base / MAX_TEMP_BYTES) & (MAX_TEMP_STRING - 1));
+			unsigned mask = 1u << index;
 			ReservedMask&=~mask;
 		}
 		else {

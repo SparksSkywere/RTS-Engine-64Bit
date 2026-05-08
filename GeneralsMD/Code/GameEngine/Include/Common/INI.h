@@ -256,6 +256,7 @@ public:
 	void initFromINI( void *what, const FieldParse* parseTable );
 	void initFromINIMulti( void *what, const MultiIniFieldParse& parseTableList );
 	void initFromINIMultiProc( void *what, BuildMultiIniFieldProc proc );
+	void skipBlock(); ///< Read and discard all lines in the current block up to and including 'End'
 	
 	static void parseUnsignedByte( INI *ini, void *instance, void *store, const void* userData );
 	static void parseShort( INI *ini, void *instance, void *store, const void* userData );

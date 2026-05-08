@@ -87,7 +87,7 @@
 
 enum
 {
-	WIN_BUFFER_LENGTH  = 2048,
+	WIN_BUFFER_LENGTH  = 8192,
 	WIN_STACK_DEPTH    = 10,
 };
 
@@ -263,10 +263,17 @@ static void readUntilSemicolon( File *fp, char *buffer, int maxBufLen )
 	{
 
 		// get next character
-		fp->read(buffer + i, 1);
+		if( fp->read(buffer + i, 1) != 1 )
+		{
+			// EOF or read error
+			buffer[ i ] = '\000';
+			return;
+		}
 
-		// make all whitespace characters spaces
-		if( isspace( buffer[ i ] ) ) 
+		// make all whitespace characters spaces.
+		// Cast to unsigned char first so UTF-8/high-bit bytes in WND text do not
+		// trip the CRT ctype assertion on x64 debug builds.
+		if( isspace( static_cast<unsigned char>( buffer[ i ] ) ) ) 
 		{
 
 			if( start == FALSE )
@@ -295,6 +302,14 @@ static void readUntilSemicolon( File *fp, char *buffer, int maxBufLen )
 	DEBUG_LOG(( "ReadUntilSemicolon: ERROR - Read buffer overflow - input truncated.\n" ));
 
 	buffer[ maxBufLen - 1 ] = '\000';
+
+	// Drain remaining bytes up to and including the ';' so the file pointer
+	// is left in a consistent state and the next call does not overflow again.
+	{
+		char c;
+		while( fp->read( &c, 1 ) == 1 && c != ';' )
+			;  // discard
+	}
 
 }  // end readUntilSemicolon
 
@@ -988,27 +1003,31 @@ static Bool parseTooltipText( char *token, WinInstanceData *instData,
 	char *ptr = buffer;
 	char *c;
 	char *stringSeps = "\n\r\t\""; 
+	char truncated[ MAX_TEXT_LABEL ];
 
 	// scan to the first " mark
-	while( *ptr != '"' )
+	while( *ptr != '\000' && *ptr != '"' )
 		ptr++;
+	if( *ptr != '"' )
+	{
+		DEBUG_LOG(( "parseTooltipText: missing opening quote in '%s'\n", buffer ));
+		return FALSE;
+	}
 	ptr++;  // skip the "
-	if(strlen( ptr ) == 1 )
-		return TRUE;
 	c = strtok( ptr, stringSeps );  // value
+	if( c == NULL )
+		return TRUE;
 	if( strlen( c ) >= MAX_TEXT_LABEL )
 	{
-		
-		DEBUG_LOG(( "TextTooltip label '%s' is too long, max is '%d'\n", c, MAX_TEXT_LABEL ));
-		assert( 0 );
-		return FALSE;
-
+		DEBUG_LOG(( "TextTooltip label '%s' is too long, max is '%d' - truncating\n", c, MAX_TEXT_LABEL ));
+		strncpy( truncated, c, MAX_TEXT_LABEL - 1 );
+		truncated[ MAX_TEXT_LABEL - 1 ] = '\000';
+		c = truncated;
 	}  // end if
 	instData->m_tooltipString.set(c);
 	instData->setTooltipText(TheGameText->fetch(c));
 	
-
-  return TRUE;
+	return TRUE;
 
 }  // end parseTooltipText
 
@@ -1016,7 +1035,7 @@ static Bool parseTooltipText( char *token, WinInstanceData *instData,
 /** Parse the tooltip delay */
 //=============================================================================
 static Bool parseTooltipDelay( char *token, WinInstanceData *instData,
-																	char *buffer, void *data )
+											char *buffer, void *data )
 {
 	//RadioButtonData *radioData = (RadioButtonData *)data;
 	char *c;
@@ -1035,29 +1054,39 @@ static Bool parseTooltipDelay( char *token, WinInstanceData *instData,
 /** Parse the TEXT field */
 //=============================================================================
 static Bool parseText( char *token, WinInstanceData *instData, 
-											 char *buffer, void *data )
+									 char *buffer, void *data )
 {
 	char *ptr = buffer;
 	char *c;
 	char *stringSeps = "\n\r\t\""; 
+	char truncated[ MAX_TEXT_LABEL ];
 
 	// scan to the first " mark
-	while( *ptr != '"' )
+	while( *ptr != '\000' && *ptr != '"' )
 		ptr++;
+	if( *ptr != '"' )
+	{
+		DEBUG_LOG(( "parseText: missing opening quote in '%s'\n", buffer ));
+		return FALSE;
+	}
 	ptr++;  // skip the "
 	c = strtok( ptr, stringSeps );  // value
+	if( c == NULL )
+	{
+		instData->m_textLabelString = "";
+		return TRUE;
+	}
 	if( strlen( c ) >= MAX_TEXT_LABEL )
 	{
-		
-		DEBUG_LOG(( "Text label '%s' is too long, max is '%d'\n", c, MAX_TEXT_LABEL ));
-		assert( 0 );
-		return FALSE;
-
+		DEBUG_LOG(( "Text label '%s' is too long, max is '%d' - truncating\n", c, MAX_TEXT_LABEL ));
+		strncpy( truncated, c, MAX_TEXT_LABEL - 1 );
+		truncated[ MAX_TEXT_LABEL - 1 ] = '\000';
+		instData->m_textLabelString = truncated;
+		return TRUE;
 	}  // end if
 	instData->m_textLabelString = c;
 	
-
-  return TRUE;
+	return TRUE;
 
 }  // end parseText
 
@@ -1074,7 +1103,6 @@ static Bool parseTextColor( char *token, WinInstanceData *instData,
 	Int i, states = 3;
 	TextDrawData *textData;
 	Bool first = TRUE;
-
 
 	for( i = 0; i < states; i++ )
 	{
@@ -2397,8 +2425,9 @@ static GameWindow *parseWindow( File *inFile, char *buffer )
 	while( TRUE ) 
 	{
 
-		// get token
-		inFile->scanString(asciibuf);
+		// get token; stop at EOF (RAMFile::scanString returns FALSE and clears the string)
+		if (inFile->scanString(asciibuf) == FALSE)
+			goto cleanupAndExit;
 
 		// parse field
 		for( parse = gameWindowFieldList; parse->parse; parse++ ) 
@@ -2602,7 +2631,10 @@ Bool parseLayoutBlock( File *inFile, char *buffer, UnsignedInt version, WindowLa
 	{
 
 		// get next token
-		inFile->scanString(asciitoken);
+		if (inFile->scanString(asciitoken) == FALSE) {
+			DEBUG_LOG(( "parseLayoutBlock: EOF reached before ENDLAYOUTBLOCK\n" ));
+			return FALSE;
+		}
 
 		// check for end
 		if (asciitoken.compare("ENDLAYOUTBLOCK") == 0) {

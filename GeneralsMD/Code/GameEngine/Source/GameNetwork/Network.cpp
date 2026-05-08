@@ -714,10 +714,14 @@ void Network::update( void )
 	}
 
 	if (AllCommandsReady(TheGameLogic->getFrame())) { // If all the commands are ready for the next frame...
-		m_conMgr->handleAllCommandsReady();
+		if (m_conMgr != NULL) {
+			m_conMgr->handleAllCommandsReady();
+		}
 //		DEBUG_LOG(("Network::update - frame %d is ready\n", TheGameLogic->getFrame()));
 		if (timeForNewFrame()) { // This needs to come after any other pre-frame execution checks as this changes the timing variables.
-			RelayCommandsToCommandList(TheGameLogic->getFrame());	// Put the commands for the next frame on TheCommandList.
+			if (m_conMgr != NULL) {
+				RelayCommandsToCommandList(TheGameLogic->getFrame());	// Put the commands for the next frame on TheCommandList.
+			}
 			m_frameDataReady = TRUE; // Tell the GameEngine to run the commands for the new frame.
 		}
 	}

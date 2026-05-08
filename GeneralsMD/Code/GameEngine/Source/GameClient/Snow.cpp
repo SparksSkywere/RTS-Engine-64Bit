@@ -41,6 +41,7 @@ SnowManager *TheSnowManager=NULL;
 
 SnowManager::SnowManager()
 {
+	m_startingHeights = NULL;
 	m_time = 0;
 	m_velocity = 1;
 	m_isVisible = TRUE;	//default to showing if it's enabled via INI.
@@ -50,7 +51,12 @@ void SnowManager::init( void )
 {
 	//starting heights of each particle
 	//TODO: replace this lookup table with some kind of procedural method that takes x,y as input.
-	m_startingHeights=NEW Real [ SNOW_NOISE_X * SNOW_NOISE_Y];
+	if (m_startingHeights != NULL)
+	{
+		delete [] m_startingHeights;
+		m_startingHeights = NULL;
+	}
+	m_startingHeights = NEW Real [ SNOW_NOISE_X * SNOW_NOISE_Y];
 	m_time = 0;
 
 	updateIniSettings();

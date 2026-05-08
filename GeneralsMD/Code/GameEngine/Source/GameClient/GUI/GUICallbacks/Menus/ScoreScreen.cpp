@@ -56,7 +56,6 @@
 #include "Common/AudioEventRTS.h"
 #include "Common/AudioHandleSpecialValues.h"
 #include "Common/BattleHonors.h"
-#include "Common/CopyProtection.h"
 #include "Common/GameEngine.h"
 #include "Common/GameLOD.h"
 #include "Common/GameState.h"
@@ -75,7 +74,6 @@
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/ScriptEngine.h"
 #include "GameLogic/VictoryConditions.h"
-#include "GameClient/CDCheck.h"
 #include "GameClient/Display.h"
 #include "GameClient/GUICallbacks.h"
 #include "GameClient/WindowLayout.h"
@@ -558,7 +556,7 @@ WindowMsgHandledType ScoreScreenSystem( GameWindow *window, UnsignedInt msg,
 					}
 					else
 					{
-						CheckForCDAtGameStart( startNextCampaignGame );
+						startNextCampaignGame();
 					}
 				}
 			}
@@ -597,7 +595,7 @@ WindowMsgHandledType ScoreScreenSystem( GameWindow *window, UnsignedInt msg,
 				if( controlID == TheNameKeyGenerator->nameToKey(name))
 				{
 					Bool notBuddy = TRUE;
-					Int playerID = (Int)GadgetButtonGetData(TheWindowManager->winGetWindowFromId(NULL,controlID));
+					Int playerID = static_cast<Int>(reinterpret_cast<intptr_t>(GadgetButtonGetData(TheWindowManager->winGetWindowFromId(NULL,controlID))));
 											// request to add a buddy
 					BuddyInfoMap *buddies = TheGameSpyInfo->getBuddyMap();
 					BuddyInfoMap::iterator bIt;
@@ -785,11 +783,7 @@ void displayChallengeWinLoss( const Image *imageGeneral, const UnicodeString str
 
 void finishSinglePlayerInit( void )
 {
-	Bool copyProtectOK = TRUE;
-#ifdef DO_COPY_PROTECTION
-	copyProtectOK = CopyProtect::validate();
-#endif
-	if(copyProtectOK && TheCampaignManager->isVictorious())
+	if(TheCampaignManager->isVictorious())
 	{
 		if (TheCampaignManager->getCurrentCampaign()
 		 && TheCampaignManager->getCurrentCampaign()->isChallengeCampaign())
@@ -844,7 +838,7 @@ void finishSinglePlayerInit( void )
 					stats.setHonors(BATTLE_HONOR_CAMPAIGN_GLA);
 				}
 
-				for (int i = 0; i < MAX_GLOBAL_GENERAL_TYPES; ++i)
+				for (int i = 0; i < NUM_GENERALS; ++i)
 				{
 					char campaignName[128];
 					sprintf(campaignName, "CHALLENGE_%d", i);
@@ -1303,7 +1297,7 @@ static void updateMPBattleHonors(Int& honors, PSPlayerStats& stats)
 
 	//	BATTLE_HONOR_GLOBAL_GENERAL
 	Int numGlobalChallengeWins = 0;
-	for (int i = GLOBAL_GENERAL_BEGIN; i <= GLOBAL_GENERAL_END; ++i)
+	for (int i = 0; i <= NUM_GENERALS - 1; ++i)
 	{
 		PerGeneralMap::const_iterator pit = stats.wins.find(i);
 		if (pit != stats.wins.end())
@@ -1315,7 +1309,7 @@ static void updateMPBattleHonors(Int& honors, PSPlayerStats& stats)
 		}
 	}
 
-	if (numGlobalChallengeWins >= MAX_GLOBAL_GENERAL_TYPES)
+	if (numGlobalChallengeWins >= NUM_GENERALS)
 	{
 		honors |= BATTLE_HONOR_GLOBAL_GENERAL;
 	}
@@ -1537,7 +1531,6 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 	//	if(screenType ==	SCORESCREEN_INTERNET && TheGameSpyInfo && TheGameSpyInfo->getLocalProfileID() != 0)
 	//	{
 	//		// Get the stats for the player
-	//		
 	//		AsciiString aName;
 	//		aName.translate(player->getPlayerDisplayName());
 	//
@@ -1567,7 +1560,6 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 	//		win->winHide(TRUE);
 	//	}
 	
-
 	// set a marker for who won and lost
 	winName.format("ScoreScreen.wnd:GameWindowWinner%d", pos);
 	win =  TheWindowManager->winGetWindowFromId( parent, TheNameKeyGenerator->nameToKey( winName ) );
@@ -1663,7 +1655,8 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 					Bool sawAnyDisconnects = FALSE;
 					Bool anyNonAI = FALSE;
 					Bool anyAI = FALSE;
-					for (Int i=0; i<MAX_SLOTS; ++i)
+					Int i;
+					for (i=0; i<MAX_SLOTS; ++i)
 					{
 						const GameSlot *slot = TheGameInfo->getConstSlot(i);
 						if (slot->isOccupied() && i != localSlotNum )
@@ -1922,10 +1915,11 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 					stats.gamesInRowWithLastGeneral++;
 					stats.lastGeneral = ptIdx;
 
+					Int gameSlot = 0;
 					Int gameSize = 0;
-					for (i=0; i<MAX_SLOTS; ++i)
+					for (gameSlot=0; gameSlot<MAX_SLOTS; ++gameSlot)
 					{
-						if (TheGameSpyGame->getConstSlot(i)->isOccupied() && TheGameSpyGame->getConstSlot(i)->getPlayerTemplate() != PLAYERTEMPLATE_OBSERVER)
+						if (TheGameSpyGame->getConstSlot(gameSlot)->isOccupied() && TheGameSpyGame->getConstSlot(gameSlot)->getPlayerTemplate() != PLAYERTEMPLATE_OBSERVER)
 							++gameSize;
 					}
 					switch (gameSize)
@@ -2576,3 +2570,4 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 //	else
 //		win->winHide(TRUE);
 }
+

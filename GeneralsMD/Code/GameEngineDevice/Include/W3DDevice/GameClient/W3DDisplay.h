@@ -89,6 +89,10 @@ public:
 																 );
 	virtual void setTimeOfDay ( TimeOfDay tod );
 
+	/// Smoothly interpolate scene lighting between two time-of-day presets (t in [0,1]).
+	/// Updates both the 3D scene lights and the terrain ambient/diffuse globals.
+	void applyInterpolatedLighting( TimeOfDay todA, TimeOfDay todB, Real t );
+
 	/// draw a line on the display in screen coordinates
 	virtual void drawLine( Int startX, Int startY, Int endX, Int endY, 
 												 Real lineWidth, UnsignedInt lineColor );

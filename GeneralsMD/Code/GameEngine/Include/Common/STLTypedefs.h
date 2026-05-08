@@ -72,7 +72,6 @@ enum DrawableID;
 
 #include <algorithm>
 #include <bitset>
-#include <hash_map>
 #include <list>
 #include <map>
 #include <queue>
@@ -157,6 +156,20 @@ namespace rts
 		}
 	};
 
+	inline size_t hash_string_contents(const char* value)
+	{
+		if (value == NULL)
+			return 0;
+
+		size_t hashValue = 2166136261u;
+		for (const unsigned char* p = reinterpret_cast<const unsigned char*>(value); *p != '\0'; ++p)
+		{
+			hashValue ^= static_cast<size_t>(*p);
+			hashValue *= 16777619u;
+		}
+		return hashValue;
+	}
+
 	template<> struct hash<NameKeyType>
 	{
 		size_t operator()(NameKeyType nkt) const
@@ -188,6 +201,14 @@ namespace rts
 	// strings to determine whether they are equal or not.
 	// Other overloads should go into specific header files, not here (unless
 	// they are ot be used in lots of places.)
+	template<> struct hash<const char*>
+	{
+		size_t operator()(const char* s) const
+		{
+			return hash_string_contents(s);
+		}
+	};
+
 	template<> struct equal_to<const char*>
 	{
 		Bool operator()(const char* s1, const char* s2) const
@@ -198,10 +219,9 @@ namespace rts
 
 	template<> struct hash<AsciiString>
 	{
-		size_t operator()(AsciiString ast) const
-		{ 
-			std::hash<const char *> tmp;
-			return tmp((const char *) ast.str());
+		size_t operator()(const AsciiString& ast) const
+		{
+			return hash_string_contents(ast.str());
 		}
 	};
 

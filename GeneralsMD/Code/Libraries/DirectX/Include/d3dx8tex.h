@@ -7,7 +7,8 @@
 //
 //////////////////////////////////////////////////////////////////////////////
 
-#include "d3dx8.h"
+// Redirect D3DX8 texturing to D3DX9 (APIs are compatible enough for this usage)
+#include "d3dx9.h"
 
 #ifndef __D3DX8TEX_H__
 #define __D3DX8TEX_H__

@@ -33,13 +33,18 @@
 
 static void drawFramerateBar(void);
 
+extern bool DX8Wrapper_IsBorderless;
+extern bool DX8Wrapper_UseVSync;
+
 // SYSTEM INCLUDES ////////////////////////////////////////////////////////////
 #include <stdlib.h>
 #include <windows.h>
+#include <mmsystem.h>
 #include <io.h>
 #include <time.h>
 
 // USER INCLUDES //////////////////////////////////////////////////////////////
+#include "W3DDevice/GameClient/W3DDisplay.h"
 #include "Common/ThingFactory.h"
 #include "Common/GameEngine.h"
 #include "Common/GlobalData.h"
@@ -65,6 +70,9 @@ static void drawFramerateBar(void);
 #include "GameNetwork/NetworkInterface.h"
 #include "Common/ModelState.h"
 #include "Lib/BaseType.h"
+
+extern Bool ApplicationIsWindowed;
+
 #include "W3DDevice/Common/W3DConvert.h"
 #include "W3DDevice/GameClient/W3DAssetManager.h"
 #include "W3DDevice/GameClient/W3DGameClient.h"
@@ -462,7 +470,9 @@ W3DDisplay::~W3DDisplay()
 	delete m_assetManager;
 	WW3D::Shutdown();
 	WWMath::Shutdown();
+	#if ENABLE_EMBEDDED_BROWSER
 	DX8WebBrowser::Shutdown();
+	#endif
 	delete TheW3DFileSystem;
 	TheW3DFileSystem = NULL;
 
@@ -490,25 +500,17 @@ Int W3DDisplay::getDisplayModeCount(void)
 	const DynamicVectorClass <ResolutionDescClass> &resolutions=devDesc.Enumerate_Resolutions();
 
 	Int numResolutions=0;
-/*	Bool needStencil=false;
-	Bool needDestinationAlpha=false;
-	Int minBitDepth=16;
-	
-	//Walk through all resolutions and determine which ones are compatible with other settings
-	//chosen by user.  For example, 32-bit may be required for shadows, occlusion, soft water edge, etc.
-	if (TheGlobalData->m_useShadowVolumes || (TheGlobalData->m_enableBehindBuildingMarkers && TheGameLogic->getShowBehindBuildingMarkers()))
-		needStencil=true;
-
-	if (TheGlobalData->m_showSoftWaterEdge)
-	{	minBitDepth=32;
-	}
-*/
+	Int prevW = -1, prevH = -1;
 	for (int res = 0; res < resolutions.Count ();  res ++)
 	{
 		// Is this the resolution we are looking for?
-		if (resolutions[res].BitDepth >= 24 && resolutions[res].Width >= MIN_DISPLAY_RESOLUTION_X 
-      && IS_FOUR_BY_THREE_ASPECT( (Real)resolutions[res].Width, (Real)resolutions[res].Height ) )	//only accept 4:3 aspect ratio modes.
-		{	
+		if (resolutions[res].BitDepth >= 24 && resolutions[res].Width >= MIN_DISPLAY_RESOLUTION_X)
+		{
+			// Skip duplicate WxH entries (same resolution at different bit depths)
+			if (resolutions[res].Width == prevW && resolutions[res].Height == prevH)
+				continue;
+			prevW = resolutions[res].Width;
+			prevH = resolutions[res].Height;
 			numResolutions++;
 		}
 	}
@@ -522,12 +524,17 @@ void W3DDisplay::getDisplayModeDescription(Int modeIndex, Int *xres, Int *yres, 
 	const RenderDeviceDescClass &devDesc=WW3D::Get_Render_Device_Desc(0);
 	const DynamicVectorClass <ResolutionDescClass> &resolutions=devDesc.Enumerate_Resolutions();
 
+	Int prevW = -1, prevH = -1;
 	for (int res = 0; res < resolutions.Count ();  res ++)
 	{
 		// Is this the resolution we are looking for?
-		if ( resolutions[res].BitDepth >= 24 && resolutions[res].Width >= MIN_DISPLAY_RESOLUTION_X 
-      && IS_FOUR_BY_THREE_ASPECT( (Real)resolutions[res].Width, (Real)resolutions[res].Height ) )	//only accept 4:3 aspect ratio modes.
-		{	
+		if ( resolutions[res].BitDepth >= 24 && resolutions[res].Width >= MIN_DISPLAY_RESOLUTION_X)
+		{
+			// Skip duplicate WxH entries
+			if (resolutions[res].Width == prevW && resolutions[res].Height == prevH)
+				continue;
+			prevW = resolutions[res].Width;
+			prevH = resolutions[res].Height;
 			if (numResolutions == modeIndex)
 			{	//found the mode
 				*xres=resolutions[res].Width;
@@ -556,17 +563,11 @@ void Reset_D3D_Device(bool active)
 		if (active)
 		{	
 			//switch back to desired mode when user alt-tabs back into game
+			DX8Wrapper_IsBorderless = TheGlobalData ? (TheGlobalData->m_borderless != FALSE) : false;
+			DX8Wrapper_UseVSync     = TheGlobalData ? (TheGlobalData->m_vsync     != FALSE) : true;
 			WW3D::Set_Render_Device( WW3D::Get_Render_Device(),TheDisplay->getWidth(),TheDisplay->getHeight(),TheDisplay->getBitDepth(),TheDisplay->getWindowed(),true, true);
-			OSVERSIONINFO	osvi;
-			osvi.dwOSVersionInfoSize=sizeof(OSVERSIONINFO);
-			if (GetVersionEx(&osvi))
-			{	//check if we're running Win9x variant since they have buggy alt-tab that requires
-				//reloading all textures.
-				if (osvi.dwPlatformId == VER_PLATFORM_WIN32_WINDOWS)
-				{	//only do this on Win9x boxes because it makes alt-tab very slow.
-						WW3D::_Invalidate_Textures();
-				}
-			}
+			// x64 is always Windows NT — Win9x texture invalidation branch removed
+			(void)0;
 		}
 		else
 		{
@@ -576,21 +577,66 @@ void Reset_D3D_Device(bool active)
 	}
 }
 
+static void syncActualDisplayModeFromRenderer( W3DDisplay *display )
+{
+	if (display == NULL)
+		return;
+
+	int actualX = display->getWidth();
+	int actualY = display->getHeight();
+	int actualBitDepth = display->getBitDepth();
+	bool actualWindowed = (display->getWindowed() != FALSE);
+	WW3D::Get_Device_Resolution( actualX, actualY, actualBitDepth, actualWindowed );
+
+	Render2DClass::Set_Screen_Resolution( RectClass( 0, 0, actualX, actualY ) );
+	display->setBitDepth( actualBitDepth );
+	display->setWindowed( actualWindowed ? TRUE : FALSE );
+	ApplicationIsWindowed = actualWindowed ? TRUE : FALSE;
+
+	if ( TheTacticalView )
+		display->Display::setDisplayMode( actualX, actualY, actualBitDepth, actualWindowed ? TRUE : FALSE );
+	else
+	{
+		display->setWidth( actualX );
+		display->setHeight( actualY );
+	}
+
+	if (TheMouse)
+		TheMouse->mouseNotifyResolutionChange();
+}
+
 /** Set resolution of display */
 //=============================================================================
 Bool W3DDisplay::setDisplayMode( UnsignedInt xres, UnsignedInt yres, UnsignedInt bitdepth, Bool windowed )
 {
+	Bool windowedChanging = (windowed != getWindowed());
+
+	if (windowedChanging)
+	{
+		// Windowed/fullscreen switch requires full D3D device reinit.
+		DX8Wrapper_IsBorderless = TheGlobalData ? (TheGlobalData->m_borderless != FALSE) : false;
+		DX8Wrapper_UseVSync     = TheGlobalData ? (TheGlobalData->m_vsync     != FALSE) : true;
+		if (WW3D_ERROR_OK == WW3D::Set_Render_Device(WW3D::Get_Render_Device(), xres, yres, bitdepth, windowed ? 1 : 0, true, true))
+		{
+			syncActualDisplayModeFromRenderer( this );
+			return TRUE;
+		}
+		// Rollback
+		DX8Wrapper_IsBorderless = TheGlobalData ? (TheGlobalData->m_borderless != FALSE) : false;
+		DX8Wrapper_UseVSync     = TheGlobalData ? (TheGlobalData->m_vsync     != FALSE) : true;
+		WW3D::Set_Render_Device(WW3D::Get_Render_Device(), getWidth(), getHeight(), getBitDepth(), getWindowed() ? 1 : 0, true, true);
+		return FALSE;
+	}
+
 	if (WW3D_ERROR_OK == WW3D::Set_Device_Resolution(xres,yres,bitdepth,windowed,true))
 	{
-		Render2DClass::Set_Screen_Resolution(RectClass(0, 0, xres, yres));
-		Display::setDisplayMode(xres, yres, bitdepth, windowed);
+		syncActualDisplayModeFromRenderer( this );
 		return TRUE;
 	}
 
 	//set back to the original mode.
 	WW3D::Set_Device_Resolution(getWidth(),getHeight(),getBitDepth(),getWindowed(), true);
-	Render2DClass::Set_Screen_Resolution(RectClass(0, 0, getWidth(),getHeight()));
-	Display::setDisplayMode(getWidth(),getHeight(),getBitDepth(), getWindowed());
+	syncActualDisplayModeFromRenderer( this );
 	return FALSE;	//did not change to a new mode.
 }
 
@@ -731,7 +777,7 @@ void W3DDisplay::init( void )
 		SortingRendererClass::SetMinVertexBufferSize(1);
 	}
 	if (WW3D::Init( ApplicationHWnd ) != WW3D_ERROR_OK)
-		throw ERROR_INVALID_D3D;	//failed to initialize.  User probably doesn't have DX 8.1
+		throw ERROR_INVALID_D3D;	//failed to initialize.  D3D9 initialization failed
 
 	WW3D::Set_Prelit_Mode( WW3D::PRELIT_MODE_LIGHTMAP_MULTI_PASS );
 	WW3D::Set_Collision_Box_Display_Mask(0x00);	///<set to 0xff to make collision boxes visible
@@ -741,6 +787,9 @@ void W3DDisplay::init( void )
 	WW3D::Set_Texture_Bitdepth(32);
 			
 	setWindowed( TheGlobalData->m_windowed );
+	ApplicationIsWindowed = (TheGlobalData->m_windowed != FALSE) ? TRUE : FALSE;
+	DX8Wrapper_IsBorderless = (TheGlobalData->m_borderless != FALSE);
+	DX8Wrapper_UseVSync     = (TheGlobalData->m_vsync     != FALSE);
 
 	// create a 2D renderer helper
 	m_2DRender = NEW Render2DClass;
@@ -769,15 +818,52 @@ void W3DDisplay::init( void )
 																 getWindowed(), 
 																 true ) != WW3D_ERROR_OK ) 
 		{
-
-			WW3D::Shutdown();
-			WWMath::Shutdown();
-			throw ERROR_INVALID_D3D;	//failed to initialize.  User probably doesn't have DX 8.1
-			DEBUG_ASSERTCRASH( 0, ("Unable to set render device\n") );
-			return;
+			// If we were trying fullscreen and it still failed (common on modern hardware
+			// when the requested resolution is not in the adapter's fullscreen mode list),
+			// fall back to borderless-windowed at desktop resolution before giving up.
+			if ( !getWindowed() )
+			{
+				if ( TheWritableGlobalData )
+				{
+					TheWritableGlobalData->m_windowed  = TRUE;
+					TheWritableGlobalData->m_borderless = TRUE;
+				}
+				setWindowed( TRUE );
+				DX8Wrapper_IsBorderless = true;
+				setBitDepth( W3D_DISPLAY_DEFAULT_BIT_DEPTH );
+				setWidth( GetSystemMetrics(SM_CXSCREEN) );
+				setHeight( GetSystemMetrics(SM_CYSCREEN) );
+				if ( WW3D::Set_Render_Device( 0,
+																			getWidth(),
+																			getHeight(),
+																			getBitDepth(),
+																			TRUE,
+																			true ) != WW3D_ERROR_OK )
+				{
+					WW3D::Shutdown();
+					WWMath::Shutdown();
+					throw ERROR_INVALID_D3D;
+				}
+				// Borderless fallback succeeded – update stored resolution.
+				if ( TheWritableGlobalData )
+				{
+					TheWritableGlobalData->m_xResolution = getWidth();
+					TheWritableGlobalData->m_yResolution = getHeight();
+				}
+			}
+			else
+			{
+				WW3D::Shutdown();
+				WWMath::Shutdown();
+				throw ERROR_INVALID_D3D;	//failed to initialize.  D3D9 initialization failed
+				DEBUG_ASSERTCRASH( 0, ("Unable to set render device\n") );
+				return;
+			}
 		}
 
 	}  // end if
+
+	syncActualDisplayModeFromRenderer( this );
 
 	//Check if level was never set and default to setting most suitable for system.
 	if (TheGameLODManager->getStaticLODLevel() == STATIC_GAME_LOD_UNKNOWN)
@@ -824,7 +910,9 @@ void W3DDisplay::init( void )
 		m_nativeDebugDisplay->setFontWidth( 9 );
 	}
 
+	#if ENABLE_EMBEDDED_BROWSER
 	DX8WebBrowser::Initialize();
+	#endif
 
 	// we're now online
 	m_initialized = true;
@@ -1461,7 +1549,7 @@ void W3DDisplay::gatherDebugStats( void )
 
 			unibuffer.concat( L"\nModelStates: " );
 			ModelConditionFlags mcFlags = draw->getModelConditionFlags();
-			const numEntriesPerLine = 4;
+			const int numEntriesPerLine = 4;
 			int lineCount = 0;
 
 			for( int i = 0; i < MODELCONDITION_COUNT; i++ )
@@ -1557,7 +1645,7 @@ void W3DDisplay::drawCurrentDebugDisplay( void )
 		if ( m_debugDisplay && m_debugDisplayCallback )
 		{
 			m_debugDisplay->reset();
-			m_debugDisplayCallback( m_debugDisplay, m_debugDisplayUserData );
+			(*m_debugDisplayCallback)( m_debugDisplay, m_debugDisplayUserData, NULL );
 		}
 	}
 }  // end drawCurrentDebugDisplay
@@ -1841,7 +1929,7 @@ AGAIN:
 		}
 
 		// update all views of the world - recomputes data which will affect drawing
-		if (DX8Wrapper::_Get_D3D_Device8() && (DX8Wrapper::_Get_D3D_Device8()->TestCooperativeLevel()) == D3D_OK)
+		if (DX8Wrapper::_Get_D3D_Device9() && (DX8Wrapper::_Get_D3D_Device9()->TestCooperativeLevel()) == D3D_OK)
 		{	//Checking if we have the device before updating views because the heightmap crashes otherwise while
 			//trying to refresh the visible terrain geometry.
 //			if(TheGlobalData->m_loadScreenRender != TRUE)
@@ -1918,7 +2006,7 @@ AGAIN:
 					m_copyrightDisplayString->getSize(&dX, &dY);
 					x = (getWidth() / 2) - (dX /2);
 					y = getHeight()  - dY - 20 ;
-					m_copyrightDisplayString->draw(x, y, GameMakeColor(0,0,0,255), GameMakeColor(0,0,0,0),0,0);
+					m_copyrightDisplayString->draw(x, y, GameMakeColor(255,255,255,255), GameMakeColor(0,0,0,0),0,0);
 				}
 				// render letter box before debug display so debug info isn't hidden
 				renderLetterBox(now);
@@ -1972,6 +2060,10 @@ AGAIN:
 					drawFramerateBar();
 				}
 #endif
+				if (TheGlobalData->m_showFPSCounter)
+				{
+					drawFPSStats();
+				}
 
 #ifdef PERF_TIMERS
 				TheGraphDraw->render();
@@ -2174,6 +2266,77 @@ void W3DDisplay::setTimeOfDay( TimeOfDay tod )
 	if(TheTerrainRenderObject) {
 		TheTerrainRenderObject->setTimeOfDay(tod);
 		TheTacticalView->forceRedraw();
+	}
+}
+
+// W3DDisplay::applyInterpolatedLighting =====================================
+/** Smoothly interpolate scene/terrain lighting between two TOD presets.
+ *  t=0 gives todA lighting; t=1 gives todB lighting. */
+//===========================================================================
+void W3DDisplay::applyInterpolatedLighting( TimeOfDay todA, TimeOfDay todB, Real t )
+{
+	if( !TheWritableGlobalData ) return;
+
+	// Clamp t to [0,1]
+	if (t < 0.0f) t = 0.0f;
+	if (t > 1.0f) t = 1.0f;
+	Real s = 1.0f - t;
+
+	// --- Object/scene lighting (3D models, ambient scene) ---
+	{
+		const GlobalData::TerrainLighting *objA = &TheGlobalData->m_terrainObjectsLighting[todA][0];
+		const GlobalData::TerrainLighting *objB = &TheGlobalData->m_terrainObjectsLighting[todB][0];
+
+		// Blend ambient for 3D scene
+		Vector3 ambLerp(
+			s * objA->ambient.red   + t * objB->ambient.red,
+			s * objA->ambient.green + t * objB->ambient.green,
+			s * objA->ambient.blue  + t * objB->ambient.blue );
+		if( m_3DScene )
+			m_3DScene->Set_Ambient_Light( ambLerp );
+
+		for (Int i = 0; i < LightEnvironmentClass::MAX_LIGHTS; i++)
+		{
+			if( !m_myLight[i] ) continue;
+			const GlobalData::TerrainLighting *la = &TheGlobalData->m_terrainObjectsLighting[todA][i];
+			const GlobalData::TerrainLighting *lb = &TheGlobalData->m_terrainObjectsLighting[todB][i];
+
+			Vector3 diffLerp(
+				s * la->diffuse.red   + t * lb->diffuse.red,
+				s * la->diffuse.green + t * lb->diffuse.green,
+				s * la->diffuse.blue  + t * lb->diffuse.blue );
+			m_myLight[i]->Set_Ambient( Vector3(0.0f, 0.0f, 0.0f) );
+			m_myLight[i]->Set_Diffuse( diffLerp );
+			m_myLight[i]->Set_Specular( Vector3(0.0f, 0.0f, 0.0f) );
+
+			// Interpolate light direction
+			Vector3 posLerp(
+				s * la->lightPos.x + t * lb->lightPos.x,
+				s * la->lightPos.y + t * lb->lightPos.y,
+				s * la->lightPos.z + t * lb->lightPos.z );
+			Matrix3D mtx;
+			mtx.Set( Vector3(1,0,0), Vector3(0,1,0), posLerp, Vector3(0,0,0) );
+			m_myLight[i]->Set_Transform( mtx );
+		}
+	}
+
+	// --- Terrain vertex lighting (read by BaseHeightMap per-vertex shading) ---
+	for (Int i = 0; i < MAX_GLOBAL_LIGHTS; i++)
+	{
+		const GlobalData::TerrainLighting *ta = &TheGlobalData->m_terrainLighting[todA][i];
+		const GlobalData::TerrainLighting *tb = &TheGlobalData->m_terrainLighting[todB][i];
+
+		TheWritableGlobalData->m_terrainAmbient[i].red   = s * ta->ambient.red   + t * tb->ambient.red;
+		TheWritableGlobalData->m_terrainAmbient[i].green = s * ta->ambient.green + t * tb->ambient.green;
+		TheWritableGlobalData->m_terrainAmbient[i].blue  = s * ta->ambient.blue  + t * tb->ambient.blue;
+
+		TheWritableGlobalData->m_terrainDiffuse[i].red   = s * ta->diffuse.red   + t * tb->diffuse.red;
+		TheWritableGlobalData->m_terrainDiffuse[i].green = s * ta->diffuse.green + t * tb->diffuse.green;
+		TheWritableGlobalData->m_terrainDiffuse[i].blue  = s * ta->diffuse.blue  + t * tb->diffuse.blue;
+
+		TheWritableGlobalData->m_terrainLightPos[i].x = s * ta->lightPos.x + t * tb->lightPos.x;
+		TheWritableGlobalData->m_terrainLightPos[i].y = s * ta->lightPos.y + t * tb->lightPos.y;
+		TheWritableGlobalData->m_terrainLightPos[i].z = s * ta->lightPos.z + t * tb->lightPos.z;
 	}
 }
 
@@ -2806,27 +2969,32 @@ VideoBuffer*	W3DDisplay::createVideoBuffer( void )
 	// first try to use the native format
 
 	WW3DFormat displayFormat = DX8Wrapper::getBackBufferFormat();
+	const DX8Caps *caps = DX8Wrapper::Peek_Current_Caps();
 
-	if ( DX8Wrapper::Get_Current_Caps()->Support_Texture_Format( displayFormat ))
+	if ( caps != NULL && caps->Support_Texture_Format( displayFormat ))
 	{
 		format = W3DVideoBuffer::W3DFormatToType( displayFormat );
 	}
 
 	if ( format == VideoBuffer::TYPE_UNKNOWN )
 	{
-		if ( DX8Wrapper::Get_Current_Caps()->Support_Texture_Format( WW3D_FORMAT_X8R8G8B8 ))
+		if ( caps == NULL )
 		{
 			format = VideoBuffer::TYPE_X8R8G8B8;
 		}
-		else if ( DX8Wrapper::Get_Current_Caps()->Support_Texture_Format( WW3D_FORMAT_R8G8B8 ))
+		else if ( caps->Support_Texture_Format( WW3D_FORMAT_X8R8G8B8 ))
+		{
+			format = VideoBuffer::TYPE_X8R8G8B8;
+		}
+		else if ( caps->Support_Texture_Format( WW3D_FORMAT_R8G8B8 ))
 		{
 			format = VideoBuffer::TYPE_R8G8B8;
 		}
-		else if ( DX8Wrapper::Get_Current_Caps()->Support_Texture_Format( WW3D_FORMAT_R5G6B5 ))
+		else if ( caps->Support_Texture_Format( WW3D_FORMAT_R5G6B5 ))
 		{
 			format = VideoBuffer::TYPE_R5G6B5;
 		}
-		else if ( DX8Wrapper::Get_Current_Caps()->Support_Texture_Format( WW3D_FORMAT_X1R5G5B5 ))
+		else if ( caps->Support_Texture_Format( WW3D_FORMAT_X1R5G5B5 ))
 		{
 			format = VideoBuffer::TYPE_X1R5G5B5;
 		}
@@ -3031,7 +3199,7 @@ void W3DDisplay::takeScreenShot(void)
  
 	D3DLOCKED_RECT lrect;
 
-	DX8_ErrorCode(fb->LockRect(&lrect,&bounds,D3DLOCK_READONLY));
+	DX9_ErrorCode(fb->LockRect(&lrect,&bounds,D3DLOCK_READONLY));
 
 	unsigned int x,y,index,index2,width,height;
 

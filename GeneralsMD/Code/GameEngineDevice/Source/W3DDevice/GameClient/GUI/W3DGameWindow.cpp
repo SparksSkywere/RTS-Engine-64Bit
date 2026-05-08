@@ -53,6 +53,12 @@
 #include "W3DDevice/GameClient/W3DGameWindowManager.h"
 #include "W3DDevice/GameClient/W3DDisplay.h"
 
+// Restore BitTest as bitmask operation (not Windows _bittest intrinsic)
+#ifdef BitTest
+#undef BitTest
+#endif
+#define BitTest(x, i) (((x) & (i)) != 0)
+
 // DEFINES ////////////////////////////////////////////////////////////////////
 enum
 {

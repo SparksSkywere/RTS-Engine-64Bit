@@ -33,9 +33,10 @@
 #include "GameClient/LanguageFilter.h"
 #include "GameNetwork/GameSpy.h"
 #include "GameNetwork/GameSpyChat.h"
+#include "GameNetwork/GameSpy/PeerDefs.h"
 #include "Common/QuotedPrintable.h"
 
-typedef set<AsciiString>::const_iterator AsciiSetIter;
+typedef std::set<AsciiString>::const_iterator AsciiSetIter;
 
 /**
 	* handleSlashCommands looks for slash ccommands and handles them,
@@ -269,7 +270,7 @@ static Bool handleSlashCommands( UnicodeString message, Bool isAction, GameWindo
 	return false;
 }
 
-static handleUnicodeMessage( const char *nick, UnicodeString msg, Bool isPublic, Bool isAction );
+static void handleUnicodeMessage( const char *nick, UnicodeString msg, Bool isPublic, Bool isAction );
 
 Bool GameSpySendChat( UnicodeString message, Bool isAction, GameWindow *playerListbox )
 {
@@ -387,9 +388,9 @@ void PlayerMessageCallback(PEER peer,
 	handleUnicodeMessage(nick, QuotedPrintableToUnicodeString(message), false, (messageType == ActionMessage));
 }
 
-static handleUnicodeMessage( const char *nick, UnicodeString msg, Bool isPublic, Bool isAction )
+static void handleUnicodeMessage( const char *nick, UnicodeString msg, Bool isPublic, Bool isAction )
 {
-	GameSpyColors style;
+	int style;
 
 	Bool isOwner = false;
 	Int flags = 0;
@@ -437,7 +438,7 @@ static handleUnicodeMessage( const char *nick, UnicodeString msg, Bool isPublic,
 	GameSpyAddText(fullMsg, style);
 }
 
-void GameSpyAddText( UnicodeString message, GameSpyColors color )
+void GameSpyAddText( UnicodeString message, int color )
 {
 	GameWindow *textWindow = NULL;
 

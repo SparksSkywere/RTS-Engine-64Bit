@@ -43,6 +43,8 @@
 // ----------------------------------------------------------------------------
 
 #include "PreRTS.h"	// This must go first in EVERY cpp file int the GameEngine
+#include <stdint.h>
+#include <stdio.h>
 
 // SYSTEM INCLUDES 
 
@@ -2249,7 +2251,7 @@ void *DynamicMemoryAllocator::allocateBytesDoNotZeroImplementation(Int numBytes 
 
 #if defined(_DEBUG) || defined(_INTERNAL)
   // check alignment
-  if (unsigned(result)&3)
+  if ((reinterpret_cast<uintptr_t>(result) & 3U) != 0)
     throw ERROR_OUT_OF_MEMORY;
 #endif
 
@@ -2649,7 +2651,15 @@ MemoryPool *MemoryPoolFactory::createMemoryPool(const char *poolName, Int alloca
 	MemoryPool *pool = findMemoryPool(poolName);
 	if (pool) 
 	{
-		DEBUG_ASSERTCRASH(allocationSize == pool->getAllocationSize(), ("pool size mismatch"));
+		if (allocationSize != pool->getAllocationSize())
+		{
+			DEBUG_LOG(("pool size mismatch: pool='%s' existing=%d requested=%d\n", poolName, pool->getAllocationSize(), allocationSize));
+			// If existing pool is smaller than requested, allocation would corrupt memory — fatal.
+			// If existing pool is larger than or equal to requested, the allocation is safe.
+			DEBUG_ASSERTCRASH(pool->getAllocationSize() >= allocationSize,
+				("pool '%s' is too SMALL: existing=%d requested=%d — memory corruption risk!",
+				 poolName, pool->getAllocationSize(), allocationSize));
+		}
 		return pool;
 	}
 
@@ -2657,8 +2667,13 @@ MemoryPool *MemoryPoolFactory::createMemoryPool(const char *poolName, Int alloca
 
 	if (initialAllocationCount <= 0 || overflowAllocationCount < 0)
 	{
-		DEBUG_CRASH(("illegal pool size: %d %d\n",initialAllocationCount,overflowAllocationCount));
-		throw ERROR_OUT_OF_MEMORY;
+		// In Release builds, DEBUG_CRASH is a no-op and the throw was silently swallowed upstream.
+		// Use RELEASE_CRASH so the failing pool name appears in the crash log.
+		static char poolErrMsg[256];
+		_snprintf(poolErrMsg, sizeof(poolErrMsg),
+			"Pool '%s' (allocationSize=%d) has no entry in MemoryInit.cpp sizes[] — add it!",
+			poolName ? poolName : "(null)", allocationSize);
+		RELEASE_CRASH((poolErrMsg));
 	}
 
 	pool = new (::sysAllocateDoNotZero(sizeof MemoryPool)) MemoryPool;	// will throw on failure
@@ -2681,7 +2696,6 @@ MemoryPool *MemoryPoolFactory::findMemoryPool(const char *poolName)
 	{
 		if (!strcmp(poolName, pool->getPoolName())) 
 		{
-			DEBUG_ASSERTCRASH(poolName == pool->getPoolName(), ("hmm, ptrs should probably match here"));
 			return pool;
 		}
 	}
@@ -3139,7 +3153,8 @@ void MemoryPoolFactory::debugMemoryReport(Int flags, Int startCheckpoint, Int en
 		DEBUG_LOG(("------------------------------------------\n"));
 		DEBUG_LOG(("Begin Pool Overflow Report\n"));
 		DEBUG_LOG(("------------------------------------------\n"));
-		for (MemoryPool *pool = m_firstPoolInFactory; pool; pool = pool->getNextPoolInList())
+		MemoryPool *pool;
+		for (pool = m_firstPoolInFactory; pool; pool = pool->getNextPoolInList())
 		{
 			if (pool->getPeakBlockCount() > pool->getInitialBlockCount())
 			{
@@ -3555,7 +3570,29 @@ void* createW3DMemPool(const char *poolName, int allocationSize)
 {
 	++theLinkTester;
 	preMainInitMemoryManager();
-	MemoryPool* pool = TheMemoryPoolFactory->createMemoryPool(poolName, allocationSize, 0, 0);
+
+	char sizedPoolName[128];
+	sizedPoolName[0] = '\0';
+	_snprintf_s(sizedPoolName, sizeof(sizedPoolName), _TRUNCATE, "%s[%d]", poolName ? poolName : "W3DPool", allocationSize);
+
+	// If the pool already exists (e.g. a second TU's inline static tries to re-initialize
+	// the same W3DMPO_GLUE class), return it immediately.  The sizedPoolName stack buffer
+	// is safe here because findMemoryPool only uses it for strcmp — it doesn't store it.
+	MemoryPool* pool = TheMemoryPoolFactory->findMemoryPool(sizedPoolName);
+	if (pool)
+	{
+		DEBUG_ASSERTCRASH(pool->getAllocationSize() == allocationSize, ("bad w3d pool"));
+		return pool;
+	}
+
+	// Pool does not exist yet.  MemoryPool stores only a raw pointer to the pool name, so
+	// we must permanently allocate the string — the stack buffer would become invalid the
+	// moment this function returns.
+	size_t nameLen = strlen(sizedPoolName) + 1;
+	char* permanentName = (char*)::sysAllocateDoNotZero((Int)nameLen);
+	memcpy(permanentName, sizedPoolName, nameLen);
+
+	pool = TheMemoryPoolFactory->createMemoryPool(permanentName, allocationSize, 0, 0);
 	DEBUG_ASSERTCRASH(pool && pool->getAllocationSize() == allocationSize, ("bad w3d pool"));
 	return pool;
 }

@@ -89,6 +89,8 @@ const int DEFAULT_BIT_DEPTH = 32;
 const int DEFAULT_TEXTURE_BIT_DEPTH = 16;
 
 bool DX8Wrapper_IsWindowed = true;
+bool DX8Wrapper_IsBorderless = false;
+bool DX8Wrapper_UseVSync     = true;
 
 // FPU_PRESERVE
 int DX8Wrapper_PreserveFPU = 0;
@@ -116,8 +118,8 @@ D3DMATRIX						DX8Wrapper::old_view;
 D3DMATRIX						DX8Wrapper::old_prj;
 
 // shader system additions KJM v
-DWORD								DX8Wrapper::Vertex_Shader								= 0;
-DWORD								DX8Wrapper::Pixel_Shader								= 0;
+UINT_PTR								DX8Wrapper::Vertex_Shader								= 0;
+UINT_PTR								DX8Wrapper::Pixel_Shader								= 0;
 
 Vector4							DX8Wrapper::Vertex_Shader_Constants[MAX_VERTEX_SHADER_CONSTANTS];
 Vector4							DX8Wrapper::Pixel_Shader_Constants[MAX_PIXEL_SHADER_CONSTANTS];
@@ -197,10 +199,17 @@ static DynamicVectorClass<StringClass>					_RenderDeviceNameTable;
 static DynamicVectorClass<StringClass>					_RenderDeviceShortNameTable;
 static DynamicVectorClass<RenderDeviceDescClass>	_RenderDeviceDescriptionTable;
 
-
-typedef IDirect3D9* (WINAPI *Direct3DCreate8Type) (UINT SDKVersion);
-Direct3DCreate8Type	Direct3DCreate8Ptr = NULL;
-HINSTANCE D3D8Lib = NULL;
+#if defined(WW3D_USE_D3D9_ALIASES)
+typedef IDirect3D9* (WINAPI *Direct3DCreateType) (UINT SDKVersion);
+static const char *kD3DLibraryName = "D3D9.DLL";
+static const char *kDirect3DCreateExport = "Direct3DCreate9";
+#else
+typedef IDirect3D8* (WINAPI *Direct3DCreateType) (UINT SDKVersion);
+static const char *kD3DLibraryName = "D3D8.DLL";
+static const char *kDirect3DCreateExport = "Direct3DCreate8";
+#endif
+Direct3DCreateType	Direct3DCreatePtr = NULL;
+HINSTANCE D3DLib = NULL;
 
 DX8_CleanupHook	 *DX8Wrapper::m_pCleanupHook=NULL;
 #ifdef EXTENDED_STATS
@@ -212,34 +221,16 @@ DX8_Stats	 DX8Wrapper::stats;
 **
 ***********************************************************************************/
 
-void Log_DX8_ErrorCode(unsigned res)
+void Log_D3D_ErrorCode(unsigned res)
 {
-	char tmp[256]="";
-
-	HRESULT new_res=D3DXGetErrorStringA(
-		res,
-		tmp,
-		sizeof(tmp));
-
-	if (new_res==D3D_OK) {
-		WWDEBUG_SAY((tmp));
-	}
+	WWDEBUG_SAY(("D3D Error: HRESULT=0x%08X\n", res));
 
 	WWASSERT(0);
 }
 
-void Non_Fatal_Log_DX8_ErrorCode(unsigned res,const char * file,int line)
+void Non_Fatal_Log_D3D_ErrorCode(unsigned res,const char * file,int line)
 {
-	char tmp[256]="";
-
-	HRESULT new_res=D3DXGetErrorStringA(
-		res,
-		tmp,
-		sizeof(tmp));
-
-	if (new_res==D3D_OK) {
-		WWDEBUG_SAY(("DX8 Error: %s, File: %s, Line: %d\n",tmp,file,line));
-	}
+	WWDEBUG_SAY(("D3D Error: HRESULT=0x%08X, File: %s, Line: %d\n", res, file, line));
 }
 
 
@@ -294,20 +285,31 @@ bool DX8Wrapper::Init(void * hwnd, bool lite)
 	Invalidate_Cached_Render_States();
 
 	if (!lite) {
-		D3D8Lib = LoadLibrary("D3D8.DLL");
+		D3DLib = LoadLibraryA(kD3DLibraryName);
 
-		if (D3D8Lib == NULL) return false;	// Return false at this point if init failed
+		if (D3DLib == NULL) {
+			WWDEBUG_SAY(("DX8Wrapper::Init failed to load %s\n", kD3DLibraryName));
+			return false;	// Return false at this point if init failed
+		}
 
-		Direct3DCreate8Ptr = (Direct3DCreate8Type) GetProcAddress(D3D8Lib, "Direct3DCreate8");
-		if (Direct3DCreate8Ptr == NULL) return false;
+		Direct3DCreatePtr = reinterpret_cast<Direct3DCreateType>(GetProcAddress(D3DLib, kDirect3DCreateExport));
+		if (Direct3DCreatePtr == NULL) {
+			WWDEBUG_SAY(("DX8Wrapper::Init failed to resolve %s from %s\n", kDirect3DCreateExport, kD3DLibraryName));
+			FreeLibrary(D3DLib);
+			D3DLib = NULL;
+			return false;
+		}
 
 		/*
 		** Create the D3D interface object
 		*/
-		WWDEBUG_SAY(("Create Direct3D8\n"));
-		D3DInterface = Direct3DCreate8Ptr(D3D_SDK_VERSION);		// TODO: handle failure cases...
+		WWDEBUG_SAY(("Create Direct3D interface via %s\n", kDirect3DCreateExport));
+		D3DInterface = Direct3DCreatePtr(D3D_SDK_VERSION);		// TODO: handle failure cases...
 		if (D3DInterface == NULL) {
-			return(false);
+			WWDEBUG_SAY(("DX8Wrapper::Init failed to create a Direct3D interface via %s\n", kDirect3DCreateExport));
+			FreeLibrary(D3DLib);
+			D3DLib = NULL;
+			return false;
 		}
 		IsInitted = true;
 
@@ -354,9 +356,9 @@ void DX8Wrapper::Shutdown(void)
 		D3DInterface=NULL;
 	}
 
-	if (D3D8Lib) {
-		FreeLibrary(D3D8Lib);
-		D3D8Lib = NULL;
+	if (D3DLib) {
+		FreeLibrary(D3DLib);
+		D3DLib = NULL;
 	}
 
 	_RenderDeviceNameTable.Clear();		 // note - Delete_All() resizes the vector, causing a reallocation.  Clear is better. jba.
@@ -418,7 +420,7 @@ bool DX8Wrapper::Validate_Device(void)
 {	DWORD numPasses=0;
 	HRESULT hRes;
 
-	hRes=_Get_D3D_Device8()->ValidateDevice(&numPasses);
+	hRes=_Get_D3D_Device9()->ValidateDevice(&numPasses);
 
 	return (hRes == D3D_OK);
 }
@@ -439,8 +441,8 @@ void DX8Wrapper::Invalidate_Cached_Render_States(void)
 		}
 		//Need to explicitly set texture to NULL, otherwise app will not be able to
 		//set it to null because of redundant state checker. MW
-		if (_Get_D3D_Device8())
-			_Get_D3D_Device8()->SetTexture(a,NULL);
+		if (_Get_D3D_Device9())
+			_Get_D3D_Device9()->SetTexture(a,NULL);
 		if (Textures[a] != NULL) {
 			Textures[a]->Release();
 		}
@@ -644,9 +646,9 @@ bool DX8Wrapper::Reset_Device(bool reload_assets)
 		memset(Vertex_Shader_Constants,0,sizeof(Vector4)*MAX_VERTEX_SHADER_CONSTANTS);
 		memset(Pixel_Shader_Constants,0,sizeof(Vector4)*MAX_PIXEL_SHADER_CONSTANTS);
 
-		HRESULT hr=_Get_D3D_Device8()->TestCooperativeLevel();
+		HRESULT hr=_Get_D3D_Device9()->TestCooperativeLevel();
 		if (hr != D3DERR_DEVICELOST )
-		{	DX8CALL_HRES(Reset(&_PresentParameters),hr)
+		{	DX9CALL_HRES(Reset(&_PresentParameters),hr)
 			if (hr != D3D_OK)
 				return false;	//reset failed.
 		}
@@ -676,11 +678,11 @@ void DX8Wrapper::Release_Device(void)
 
 		for (int a=0;a<MAX_TEXTURE_STAGES;++a)
 		{	//release references to any textures that were used in last rendering call
-			DX8CALL(SetTexture(a,NULL));
+			DX9CALL(SetTexture(a,NULL));
 		}
 
-		DX8CALL(SetStreamSource(0, NULL, 0));	//release reference count on last rendered vertex buffer
-		DX8CALL(SetIndices(NULL,0));	//release reference count on last rendered index buffer
+		DX9CALL(SetStreamSource(0, NULL, 0));	//release reference count on last rendered vertex buffer
+		DX9CALL(SetIndices(NULL,0));	//release reference count on last rendered index buffer
 
 
 		/*
@@ -802,16 +804,16 @@ void DX8Wrapper::Enumerate_Devices()
 
 bool DX8Wrapper::Set_Any_Render_Device(void)
 {
-	// Then fullscreen
-	for (int dev_number = 0; dev_number < _RenderDeviceNameTable.Count(); dev_number++) {
-		if (Set_Render_Device(dev_number,-1,-1,-1,0,false)) {
+	int dev_number;
+
+	for (dev_number = 0; dev_number < _RenderDeviceNameTable.Count(); dev_number++) {
+		if (Set_Render_Device(dev_number,-1,-1,-1,1,false)) {
 			return true;
 		}
 	}
 
-	// Try windowed first
 	for (dev_number = 0; dev_number < _RenderDeviceNameTable.Count(); dev_number++) {
-		if (Set_Render_Device(dev_number,-1,-1,-1,1,false)) {
+		if (Set_Render_Device(dev_number,-1,-1,-1,0,false)) {
 			return true;
 		}
 	}
@@ -920,41 +922,53 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 		_RenderDeviceDescriptionTable[CurRenderDevice].Get_Driver_Version(),ResolutionWidth,ResolutionHeight,(IsWindowed ? 1 : 0)));
 
 #ifdef _WINDOWS
-	// PWG 4/13/2000 - changed so that if you say to resize the window it resizes
-	// regardless of whether its windowed or not as OpenGL resizes its self around
-	// the caption and edges of the window type you provide, so its important to 
-	// push the client area to be the size you really want.
-	// if ( resize_window && windowed ) {
 	if (resize_window) {
+		RECT monitorRect = { 0, 0, ::GetSystemMetrics(SM_CXSCREEN), ::GetSystemMetrics(SM_CYSCREEN) };
+		RECT workRect = monitorRect;
+		MONITORINFO mi;
+		::ZeroMemory(&mi, sizeof(mi));
+		mi.cbSize = sizeof(mi);
+		HMONITOR monitor = ::MonitorFromWindow(_Hwnd, MONITOR_DEFAULTTONEAREST);
+		if (monitor != NULL && ::GetMonitorInfo(monitor, &mi)) {
+			monitorRect = mi.rcMonitor;
+			workRect = mi.rcWork;
+		}
 
-		// Get the current dimensions of the 'render area' of the window
-		RECT rect = { 0 };
-		::GetClientRect (_Hwnd, &rect);
-
-		// Is the window the correct size for this resolution?
-		if ((rect.right-rect.left) != ResolutionWidth ||
-			 (rect.bottom-rect.top) != ResolutionHeight) {			
-			
-			// Calculate what the main window's bounding rectangle should be to
-			// accomodate this resolution
-			rect.left = 0;
-			rect.top = 0;
-			rect.right = ResolutionWidth;
-			rect.bottom = ResolutionHeight;
-			DWORD dwstyle = ::GetWindowLong (_Hwnd, GWL_STYLE);
-			AdjustWindowRect (&rect, dwstyle, FALSE);
-
-			// Resize the window to fit this resolution
-			if (!windowed)
-				::SetWindowPos(_Hwnd, HWND_TOPMOST, 0, 0, rect.right-rect.left, rect.bottom-rect.top,SWP_NOSIZE |SWP_NOMOVE);
-			else
-				::SetWindowPos (_Hwnd,
-								 NULL,
-								 0,
-								 0,
-								 rect.right-rect.left,
-								 rect.bottom-rect.top,
-								 SWP_NOZORDER | SWP_NOMOVE);
+		if (!IsWindowed) {
+			// Fullscreen: strip window decorations and cover the current monitor.
+			DWORD fsStyle = WS_POPUP | WS_VISIBLE;
+			::SetWindowLongPtr(_Hwnd, GWL_STYLE, fsStyle);
+			::SetWindowLongPtr(_Hwnd, GWL_EXSTYLE, WS_EX_TOPMOST);
+			::SetWindowPos(_Hwnd, HWND_TOPMOST, monitorRect.left, monitorRect.top,
+				ResolutionWidth, ResolutionHeight,
+				SWP_FRAMECHANGED | SWP_NOACTIVATE);
+		} else if (DX8Wrapper_IsBorderless) {
+			// Borderless windowed: no title bar, fills the current monitor, D3D windowed mode.
+			int monW = monitorRect.right - monitorRect.left;
+			int monH = monitorRect.bottom - monitorRect.top;
+			ResolutionWidth = monW;
+			ResolutionHeight = monH;
+			Render2DClass::Set_Screen_Resolution( RectClass( 0, 0, ResolutionWidth, ResolutionHeight ) );
+			DWORD bStyle = WS_POPUP | WS_VISIBLE;
+			::SetWindowLongPtr(_Hwnd, GWL_STYLE, bStyle);
+			::SetWindowLongPtr(_Hwnd, GWL_EXSTYLE, 0);
+			::SetWindowPos(_Hwnd, HWND_NOTOPMOST, monitorRect.left, monitorRect.top, monW, monH, SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+		} else {
+			// Windowed: restore caption/border and center inside the current monitor work area.
+			DWORD wStyle = WS_POPUP | WS_VISIBLE | WS_DLGFRAME | WS_CAPTION | WS_SYSMENU;
+			::SetWindowLongPtr(_Hwnd, GWL_STYLE, wStyle);
+			::SetWindowLongPtr(_Hwnd, GWL_EXSTYLE, 0);
+			RECT rect = { 0, 0, ResolutionWidth, ResolutionHeight };
+			::AdjustWindowRect(&rect, wStyle, FALSE);
+			int w = rect.right - rect.left;
+			int h = rect.bottom - rect.top;
+			int workW = workRect.right - workRect.left;
+			int workH = workRect.bottom - workRect.top;
+			int x = workRect.left + (workW - w) / 2;
+			int y = workRect.top + (workH - h) / 2;
+			if (x < workRect.left) x = workRect.left;
+			if (y < workRect.top) y = workRect.top;
+			::SetWindowPos(_Hwnd, HWND_NOTOPMOST, x, y, w, h, SWP_FRAMECHANGED);
 		}
 	}
 #endif
@@ -968,18 +982,17 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 
 	_PresentParameters.BackBufferWidth = ResolutionWidth;
 	_PresentParameters.BackBufferHeight = ResolutionHeight;
-	_PresentParameters.BackBufferCount = IsWindowed ? 1 : 2;
-	
+	_PresentParameters.BackBufferCount = 1;
+
 	_PresentParameters.MultiSampleType = D3DMULTISAMPLE_NONE;
-	//I changed this to discard all the time (even when full-screen) since that the most efficient. 07-16-03 MW:
-	_PresentParameters.SwapEffect = D3DSWAPEFFECT_DISCARD;//IsWindowed ? D3DSWAPEFFECT_DISCARD : D3DSWAPEFFECT_FLIP;		// Shouldn't this be D3DSWAPEFFECT_FLIP?
+	_PresentParameters.SwapEffect = D3DSWAPEFFECT_DISCARD;
 	_PresentParameters.hDeviceWindow = _Hwnd;
 	_PresentParameters.Windowed = IsWindowed;
 
-	_PresentParameters.EnableAutoDepthStencil = TRUE;				// Driver will attempt to match Z-buffer depth
-	_PresentParameters.Flags=0;											// We're not going to lock the backbuffer
-	
-	_PresentParameters.FullScreen_PresentationInterval = D3DPRESENT_INTERVAL_DEFAULT;
+	_PresentParameters.EnableAutoDepthStencil = TRUE;
+	_PresentParameters.Flags = 0;
+
+	_PresentParameters.FullScreen_PresentationInterval = DX8Wrapper_UseVSync ? D3DPRESENT_INTERVAL_ONE : D3DPRESENT_INTERVAL_IMMEDIATE;
 	_PresentParameters.FullScreen_RefreshRateInHz = D3DPRESENT_RATE_DEFAULT;
 
 	/*
@@ -1038,9 +1051,106 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 
 		/*
 		** Try to find a mode that matches the user's desired bit-depth.
+		** First, check if the exact resolution is available; if not, find the nearest
+		** available mode (smallest resolution >= requested) so the device can be created.
 		*/
-		Find_Color_And_Z_Mode(ResolutionWidth,ResolutionHeight,BitDepth,&DisplayFormat,
-			&_PresentParameters.BackBufferFormat,&_PresentParameters.AutoDepthStencilFormat);
+		{
+			UINT modemax = D3DInterface->GetAdapterModeCount(D3DADAPTER_DEFAULT);
+			bool exactFound = false;
+			int bestDiff = INT_MAX;
+			UINT nearestW = 0, nearestH = 0;
+			D3DDISPLAYMODE dm;
+			::ZeroMemory(&dm, sizeof(dm));
+			for (UINT mi = 0; mi < modemax; mi++) {
+				D3DInterface->EnumAdapterModes(D3DADAPTER_DEFAULT, mi, &dm);
+				if ((int)dm.Width == ResolutionWidth && (int)dm.Height == ResolutionHeight) {
+					exactFound = true;
+					break;
+				}
+				if ((int)dm.Width >= ResolutionWidth && (int)dm.Height >= ResolutionHeight) {
+					int diff = (int)(dm.Width - ResolutionWidth) + (int)(dm.Height - ResolutionHeight);
+					if (diff < bestDiff) {
+						bestDiff = diff;
+						nearestW = dm.Width;
+						nearestH = dm.Height;
+					}
+				}
+			}
+			if (!exactFound && nearestW != 0) {
+				WWDEBUG_SAY(("Fullscreen %dx%d not available; adjusting to nearest: %dx%d\r\n",
+					ResolutionWidth, ResolutionHeight, nearestW, nearestH));
+				ResolutionWidth = nearestW;
+				ResolutionHeight = nearestH;
+				_PresentParameters.BackBufferWidth = ResolutionWidth;
+				_PresentParameters.BackBufferHeight = ResolutionHeight;
+			}
+		}
+
+		/*
+		** Try to find a mode that matches the user's desired bit-depth.
+		** If no valid fullscreen color mode exists (common on modern hardware/drivers),
+		** automatically fall back to borderless windowed at desktop resolution.
+		*/
+		if (!Find_Color_And_Z_Mode(ResolutionWidth,ResolutionHeight,BitDepth,&DisplayFormat,
+			&_PresentParameters.BackBufferFormat,&_PresentParameters.AutoDepthStencilFormat))
+		{
+			WWDEBUG_SAY(("Exclusive fullscreen not available; falling back to borderless windowed.\n"));
+			IsWindowed = true;
+			DX8Wrapper_IsWindowed = true;
+			DX8Wrapper_IsBorderless = true;
+			_PresentParameters.Windowed = TRUE;
+#ifdef _WINDOWS
+			{
+				RECT monitorRect = { 0, 0, ::GetSystemMetrics(SM_CXSCREEN), ::GetSystemMetrics(SM_CYSCREEN) };
+				MONITORINFO mi;
+				::ZeroMemory(&mi, sizeof(mi));
+				mi.cbSize = sizeof(mi);
+				HMONITOR monitor = ::MonitorFromWindow(_Hwnd, MONITOR_DEFAULTTONEAREST);
+				if (monitor != NULL && ::GetMonitorInfo(monitor, &mi)) {
+					monitorRect = mi.rcMonitor;
+				}
+				int monW = monitorRect.right - monitorRect.left;
+				int monH = monitorRect.bottom - monitorRect.top;
+				::SetWindowLongPtr(_Hwnd, GWL_STYLE, WS_POPUP | WS_VISIBLE);
+				::SetWindowLongPtr(_Hwnd, GWL_EXSTYLE, 0);
+				::SetWindowPos(_Hwnd, HWND_NOTOPMOST, monitorRect.left, monitorRect.top, monW, monH, SWP_FRAMECHANGED);
+				ResolutionWidth = monW;
+				ResolutionHeight = monH;
+			}
+#endif
+			_PresentParameters.BackBufferWidth = ResolutionWidth;
+			_PresentParameters.BackBufferHeight = ResolutionHeight;
+			D3DDISPLAYMODE desktop_mode;
+			::ZeroMemory(&desktop_mode, sizeof(D3DDISPLAYMODE));
+			D3DInterface->GetAdapterDisplayMode(CurRenderDevice, &desktop_mode);
+			DisplayFormat = _PresentParameters.BackBufferFormat = desktop_mode.Format;
+			switch (_PresentParameters.BackBufferFormat) {
+			case D3DFMT_X8R8G8B8:
+			case D3DFMT_A8R8G8B8:
+			case D3DFMT_R8G8B8: BitDepth = 32; break;
+			case D3DFMT_A4R4G4B4:
+			case D3DFMT_A1R5G5B5:
+			case D3DFMT_R5G6B5: BitDepth = 16; break;
+			default: BitDepth = 32; break;
+			}
+			if (BitDepth == 32 &&
+				D3DInterface->CheckDeviceType(0, D3DDEVTYPE_HAL, desktop_mode.Format, D3DFMT_A8R8G8B8, TRUE) == D3D_OK)
+			{	// promote 32-bit modes to include destination alpha
+				_PresentParameters.BackBufferFormat = D3DFMT_A8R8G8B8;
+			}
+			if (!Find_Z_Mode(DisplayFormat, _PresentParameters.BackBufferFormat, &_PresentParameters.AutoDepthStencilFormat)) {
+				if (BitDepth == 32) {
+					BitDepth = 16;
+					_PresentParameters.BackBufferFormat = D3DFMT_R5G6B5;
+					if (!Find_Z_Mode(_PresentParameters.BackBufferFormat, _PresentParameters.BackBufferFormat,
+						&_PresentParameters.AutoDepthStencilFormat)) {
+						_PresentParameters.AutoDepthStencilFormat = D3DFMT_UNKNOWN;
+					}
+				} else {
+					_PresentParameters.AutoDepthStencilFormat = D3DFMT_UNKNOWN;
+				}
+			}
+		}
 	}
 
 	/*
@@ -1204,36 +1314,59 @@ bool DX8Wrapper::Set_Device_Resolution(int width,int height,int bits,int windowe
 		}
 		if (resize_window)
 		{
-
-			// Get the current dimensions of the 'render area' of the window
 			RECT rect = { 0 };
 			::GetClientRect (_Hwnd, &rect);
 
-			// Is the window the correct size for this resolution?
 			if ((rect.right-rect.left) != ResolutionWidth ||
 				 (rect.bottom-rect.top) != ResolutionHeight)
-			{			
-				
-				// Calculate what the main window's bounding rectangle should be to
-				// accomodate this resolution
-				rect.left = 0;
-				rect.top = 0;
-				rect.right = ResolutionWidth;
-				rect.bottom = ResolutionHeight;
+			{
+				RECT windowRect = { 0, 0, ResolutionWidth, ResolutionHeight };
 				DWORD dwstyle = ::GetWindowLong (_Hwnd, GWL_STYLE);
-				AdjustWindowRect (&rect, dwstyle, FALSE);
+				AdjustWindowRect (&windowRect, dwstyle, FALSE);
 
-				// Resize the window to fit this resolution
+				RECT monitorRect = { 0, 0, ::GetSystemMetrics(SM_CXSCREEN), ::GetSystemMetrics(SM_CYSCREEN) };
+				RECT workRect = monitorRect;
+				MONITORINFO mi;
+				::ZeroMemory(&mi, sizeof(mi));
+				mi.cbSize = sizeof(mi);
+				HMONITOR monitor = ::MonitorFromWindow(_Hwnd, MONITOR_DEFAULTTONEAREST);
+				if (monitor != NULL && ::GetMonitorInfo(monitor, &mi)) {
+					monitorRect = mi.rcMonitor;
+					workRect = mi.rcWork;
+				}
+
+				int winW = windowRect.right - windowRect.left;
+				int winH = windowRect.bottom - windowRect.top;
 				if (!windowed)
-					::SetWindowPos(_Hwnd, HWND_TOPMOST, 0, 0, rect.right-rect.left, rect.bottom-rect.top,SWP_NOSIZE |SWP_NOMOVE);
+				{
+					::SetWindowPos(_Hwnd, HWND_TOPMOST, monitorRect.left, monitorRect.top, ResolutionWidth, ResolutionHeight, SWP_FRAMECHANGED | SWP_NOACTIVATE);
+				}
+				else if (DX8Wrapper_IsBorderless)
+				{
+					int monW = monitorRect.right - monitorRect.left;
+					int monH = monitorRect.bottom - monitorRect.top;
+					_PresentParameters.BackBufferWidth = ResolutionWidth = monW;
+					_PresentParameters.BackBufferHeight = ResolutionHeight = monH;
+					::SetWindowLongPtr(_Hwnd, GWL_STYLE, WS_POPUP | WS_VISIBLE);
+					::SetWindowLongPtr(_Hwnd, GWL_EXSTYLE, 0);
+					::SetWindowPos(_Hwnd, HWND_NOTOPMOST, monitorRect.left, monitorRect.top, monW, monH, SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+				}
 				else
+				{
+					int workW = workRect.right - workRect.left;
+					int workH = workRect.bottom - workRect.top;
+					int x = workRect.left + (workW - winW) / 2;
+					int y = workRect.top + (workH - winH) / 2;
+					if (x < workRect.left) x = workRect.left;
+					if (y < workRect.top) y = workRect.top;
 					::SetWindowPos (_Hwnd,
-									 NULL,
-									 0,
-									 0,
-									 rect.right-rect.left,
-									 rect.bottom-rect.top,
-									 SWP_NOZORDER | SWP_NOMOVE);
+									 HWND_NOTOPMOST,
+									 x,
+									 y,
+									 winW,
+									 winH,
+									 SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+				}
 			}
 		}
 #pragma message("TODO: support changing windowed status and changing the bit depth")
@@ -1426,16 +1559,16 @@ bool DX8Wrapper::Find_Color_And_Z_Mode(int resx,int resy,int bitdepth,D3DFORMAT 
 {
 	static D3DFORMAT _formats16[] =
 	{
+		// The DX9 compat shim always enumerates X8R8G8B8 modes; 16-bit format checks
+		// (X1R5G5B5, A1R5G5B5) will always fail, so only try R5G6B5.
 		D3DFMT_R5G6B5,
-		D3DFMT_X1R5G5B5,
-		D3DFMT_A1R5G5B5
 	};
 
 	static D3DFORMAT _formats32[] =
 	{
-		D3DFMT_A8R8G8B8,
+		// The DX9 compat shim (dx9compat.h) always enumerates D3DFMT_X8R8G8B8 modes;
+		// A8R8G8B8 and R8G8B8 format checks will always fail, so only try X8R8G8B8.
 		D3DFMT_X8R8G8B8,
-		D3DFMT_R8G8B8,
 	};
 
 	/*
@@ -1457,8 +1590,9 @@ bool DX8Wrapper::Find_Color_And_Z_Mode(int resx,int resy,int bitdepth,D3DFORMAT 
 	*/
 	bool found = false;
 	unsigned int mode = 0;
+	int format_index;
 
-	for (int format_index=0; format_index < format_count; format_index++) {
+	for (format_index=0; format_index < format_count; format_index++) {
 		found |= Find_Color_Mode(format_table[format_index],resx,resy,&mode);
 		if (found) break;
 	}
@@ -1687,24 +1821,28 @@ void DX8Wrapper::Begin_Scene(void)
 	DX8WebBrowser::Update();
 #endif
 	
-	DX8CALL(BeginScene());
+	DX9CALL(BeginScene());
 
+	#if ENABLE_EMBEDDED_BROWSER
 	DX8WebBrowser::Update();
+	#endif
 }
 
 void DX8Wrapper::End_Scene(bool flip_frames)
 {
 	DX8_THREAD_ASSERT();
-	DX8CALL(EndScene());
+	DX9CALL(EndScene());
 
+	#if ENABLE_EMBEDDED_BROWSER
 	DX8WebBrowser::Render(0);
+	#endif
 
 	if (flip_frames) {
 		DX8_Assert();
 		HRESULT hr;
 		{
 			WWPROFILE("DX8Device::Present()");
-			hr=_Get_D3D_Device8()->Present(NULL, NULL, NULL, NULL);
+			hr=_Get_D3D_Device9()->Present(NULL, NULL, NULL, NULL);
 		}
 
 		number_of_DX8_calls++;
@@ -1724,7 +1862,7 @@ void DX8Wrapper::End_Scene(bool flip_frames)
 
 		// If the device was lost we need to check for cooperative level and possibly reset the device
 		if (hr==D3DERR_DEVICELOST) {
-			hr=_Get_D3D_Device8()->TestCooperativeLevel();
+			hr=_Get_D3D_Device9()->TestCooperativeLevel();
 			if (hr==D3DERR_DEVICENOTRESET) {
 				Reset_Device();
 			}
@@ -1734,7 +1872,7 @@ void DX8Wrapper::End_Scene(bool flip_frames)
 			}
 		}
 		else {
-			DX8_ErrorCode(hr);
+			DX9_ErrorCode(hr);
 		}
 	}
 
@@ -1760,7 +1898,7 @@ void DX8Wrapper::Flip_To_Primary(void)
 		int resetAttempts = 0;
 
 		while ((flipCount > 0) && (resetAttempts < 3)) {
-			HRESULT hr = _Get_D3D_Device8()->TestCooperativeLevel();
+			HRESULT hr = _Get_D3D_Device9()->TestCooperativeLevel();
 
 			if (FAILED(hr)) {
 				WWDEBUG_SAY(("TestCooperativeLevel Failed!\n"));
@@ -1779,7 +1917,7 @@ void DX8Wrapper::Flip_To_Primary(void)
 				}
 			} else {
 				WWDEBUG_SAY(("Flipping: %ld\n", FrameCount));
-				hr = _Get_D3D_Device8()->Present(NULL, NULL, NULL, NULL);
+				hr = _Get_D3D_Device9()->Present(NULL, NULL, NULL, NULL);
 
 				if (SUCCEEDED(hr)) {
 					IsDeviceLost=false;
@@ -1814,7 +1952,7 @@ void DX8Wrapper::Clear(bool clear_color, bool clear_z_stencil, const Vector3 &co
 	bool has_stencil=false;
 	IDirect3DSurface9* depthbuffer;
 
-	_Get_D3D_Device8()->GetDepthStencilSurface(&depthbuffer);
+	_Get_D3D_Device9()->GetDepthStencilSurface(&depthbuffer);
 	number_of_DX8_calls++;
 
 	if (depthbuffer)
@@ -1838,14 +1976,14 @@ void DX8Wrapper::Clear(bool clear_color, bool clear_z_stencil, const Vector3 &co
 	if (clear_z_stencil && has_stencil) flags |= D3DCLEAR_STENCIL;
 	if (flags)
 	{
-		DX8CALL(Clear(0, NULL, flags, Convert_Color(color,dest_alpha), z, stencil));
+		DX9CALL(Clear(0, NULL, flags, Convert_Color(color,dest_alpha), z, stencil));
 	}
 }
 
 void DX8Wrapper::Set_Viewport(CONST D3DVIEWPORT9* pViewport)
 {
 	DX8_THREAD_ASSERT();
-	DX8CALL(SetViewport(pViewport));
+	DX9CALL(SetViewport(pViewport));
 }
 
 // ----------------------------------------------------------------------------
@@ -1976,14 +2114,16 @@ void DX8Wrapper::Draw_Sorting_IB_VB(
 		}
 	}
 
-	DX8CALL(SetStreamSource(
+	DX9CALL(SetStreamSource(
 		0,
 		static_cast<DX8VertexBufferClass*>(dyn_vb_access.VertexBuffer)->Get_DX8_Vertex_Buffer(),
 		dyn_vb_access.FVF_Info().Get_FVF_Size()));
 	// If using FVF format VB, set the FVF as vertex shader (may not be needed here KM)
 	unsigned fvf=dyn_vb_access.FVF_Info().Get_FVF();
 	if (fvf!=0) {
-		DX8CALL(SetVertexShader(fvf));
+		DX8_Assert();
+		DX9_ErrorCode(D3D9_SetVertexShader(DX8Wrapper::_Get_D3D_Device9(), fvf));
+		number_of_DX8_calls++;
 	}
 	DX8_RECORD_VERTEX_BUFFER_CHANGE();
 
@@ -2017,15 +2157,16 @@ void DX8Wrapper::Draw_Sorting_IB_VB(
 		}
 	}
 
-	DX8CALL(SetIndices(
+	DX9CALL(SetIndices(
 		static_cast<DX8IndexBufferClass*>(dyn_ib_access.IndexBuffer)->Get_DX8_Index_Buffer(),
 		dyn_vb_access.VertexBufferOffset));
 	DX8_RECORD_INDEX_BUFFER_CHANGE();
 
 	DX8_RECORD_DRAW_CALLS();
-	DX8CALL(DrawIndexedPrimitive(
+	DX9CALL(DrawIndexedPrimitive(
 		D3DPT_TRIANGLELIST,
-		0,		// start vertex
+		dyn_vb_access.VertexBufferOffset,
+		0,
 		vertex_count,
 		dyn_ib_access.IndexBufferOffset,
 		polygon_count));
@@ -2130,15 +2271,11 @@ void DX8Wrapper::Draw(
 		case BUFFER_TYPE_DX8:
 		case BUFFER_TYPE_DYNAMIC_DX8:
 			{
-/*				if ((start_index+render_state.iba_offset+polygon_count*3) > render_state.index_buffer->Get_Index_Count())
-				{	WWASSERT_PRINT(0,"OVERFLOWING INDEX BUFFER");
-					///@todo: MUST FIND OUT WHY THIS HAPPENS WITH LOTS OF PARTICLES ON BIG FIGHT!  -MW
-					break;
-				}*/
 				DX8_RECORD_RENDER(polygon_count,vertex_count,render_state.shader);
 				DX8_RECORD_DRAW_CALLS();
-				DX8CALL(DrawIndexedPrimitive(
+				DX9CALL(DrawIndexedPrimitive(
 					(D3DPRIMITIVETYPE)primitive_type,
+					render_state.index_base_offset + render_state.vba_offset,
 					min_vertex_index,
 					vertex_count,
 					start_index+render_state.iba_offset,
@@ -2315,13 +2452,14 @@ void DX8Wrapper::Apply_Render_State_Changes()
 		_Set_DX8_Transform(D3DTS_VIEW,render_state.view);
 	}
 	if (render_state_changed&VERTEX_BUFFER_CHANGED) {
+		int i;
 		SNAPSHOT_SAY(("DX8 - apply vb change\n"));
 		for (i=0;i<MAX_VERTEX_STREAMS;++i) {
 			if (render_state.vertex_buffers[i]) {
 				switch (render_state.vertex_buffer_types[i]) {//->Type()) {
 				case BUFFER_TYPE_DX8:
 				case BUFFER_TYPE_DYNAMIC_DX8:
-					DX8CALL(SetStreamSource(
+					DX9CALL(SetStreamSource(
 						i,
 						static_cast<DX8VertexBufferClass*>(render_state.vertex_buffers[i])->Get_DX8_Vertex_Buffer(),
 						render_state.vertex_buffers[i]->FVF_Info().Get_FVF_Size()));
@@ -2341,7 +2479,7 @@ void DX8Wrapper::Apply_Render_State_Changes()
 					WWASSERT(0);
 				}
 			} else {
-				DX8CALL(SetStreamSource(i,NULL,0));
+				DX9CALL(SetStreamSource(i,NULL,0));
 				DX8_RECORD_VERTEX_BUFFER_CHANGE();
 			}
 		}
@@ -2352,7 +2490,7 @@ void DX8Wrapper::Apply_Render_State_Changes()
 			switch (render_state.index_buffer_type) {//->Type()) {
 			case BUFFER_TYPE_DX8:
 			case BUFFER_TYPE_DYNAMIC_DX8:
-				DX8CALL(SetIndices(
+				DX9CALL(SetIndices(
 					static_cast<DX8IndexBufferClass*>(render_state.index_buffer)->Get_DX8_Index_Buffer(),
 					render_state.index_base_offset+render_state.vba_offset));
 				DX8_RECORD_INDEX_BUFFER_CHANGE();
@@ -2365,7 +2503,7 @@ void DX8Wrapper::Apply_Render_State_Changes()
 			}
 		}
 		else {
-			DX8CALL(SetIndices(
+			DX9CALL(SetIndices(
 				NULL,
 				0));
 			DX8_RECORD_INDEX_BUFFER_CHANGE();
@@ -2401,7 +2539,7 @@ IDirect3DTexture9 * DX8Wrapper::_Create_DX8_Texture
 	// which case we return NULL.
 	if (rendertarget) {
 		unsigned ret=D3DXCreateTexture(
-			DX8Wrapper::_Get_D3D_Device8(),
+			DX8Wrapper::_Get_D3D_Device9(),
 			width,
 			height,
 			mip_level_count,
@@ -2411,7 +2549,7 @@ IDirect3DTexture9 * DX8Wrapper::_Create_DX8_Texture
 			&texture);
 
 		if (ret==D3DERR_NOTAVAILABLE) {
-			Non_Fatal_Log_DX8_ErrorCode(ret,__FILE__,__LINE__);
+			Non_Fatal_Log_D3D_ErrorCode(ret,__FILE__,__LINE__);
 			return NULL;
 		}
 
@@ -2425,7 +2563,7 @@ IDirect3DTexture9 * DX8Wrapper::_Create_DX8_Texture
 			WW3D::_Invalidate_Mesh_Cache();
 
 			ret=D3DXCreateTexture(
-				DX8Wrapper::_Get_D3D_Device8(),
+				DX8Wrapper::_Get_D3D_Device9(),
 				width,
 				height,
 				mip_level_count,
@@ -2441,12 +2579,12 @@ IDirect3DTexture9 * DX8Wrapper::_Create_DX8_Texture
 				WWDEBUG_SAY(("...Render target creation failed.\n"));
 			}
 			if (ret==D3DERR_OUTOFVIDEOMEMORY) {
-				Non_Fatal_Log_DX8_ErrorCode(ret,__FILE__,__LINE__);
+				Non_Fatal_Log_D3D_ErrorCode(ret,__FILE__,__LINE__);
 				return NULL;
 			}
 		}
 
-		DX8_ErrorCode(ret);
+		DX9_ErrorCode(ret);
 		// Just return the texture, no reduction
 		// allowed for render targets.
 		return texture;
@@ -2456,7 +2594,7 @@ IDirect3DTexture9 * DX8Wrapper::_Create_DX8_Texture
 	// However, it seems to happen sometimes when there are a lot of textures in memory and so
 	// if it happens we'll release assets and try again (anything is better than crashing).
 	unsigned ret=D3DXCreateTexture(
-		DX8Wrapper::_Get_D3D_Device8(),
+		DX8Wrapper::_Get_D3D_Device9(),
 		width,
 		height,
 		mip_level_count,
@@ -2475,7 +2613,7 @@ IDirect3DTexture9 * DX8Wrapper::_Create_DX8_Texture
 		WW3D::_Invalidate_Mesh_Cache();
 
 		ret=D3DXCreateTexture(
-			DX8Wrapper::_Get_D3D_Device8(),
+			DX8Wrapper::_Get_D3D_Device9(),
 			width,
 			height,
 			mip_level_count,
@@ -2493,7 +2631,7 @@ IDirect3DTexture9 * DX8Wrapper::_Create_DX8_Texture
 		}
 
 	}
-	DX8_ErrorCode(ret);
+	DX9_ErrorCode(ret);
 
 	return texture;
 }
@@ -2514,7 +2652,7 @@ IDirect3DTexture9 * DX8Wrapper::_Create_DX8_Texture
 	// function as well, so if we later want to second-guess D3DX's format conversion decisions
 	// we can do so after this function is called..
 	unsigned result = D3DXCreateTextureFromFileExA(
-		_Get_D3D_Device8(),
+		_Get_D3D_Device9(),
 		filename,
 		D3DX_DEFAULT,
 		D3DX_DEFAULT,
@@ -2565,13 +2703,13 @@ IDirect3DTexture9 * DX8Wrapper::_Create_DX8_Texture
 	// Copy the surface to the texture
 	IDirect3DSurface9 *tex_surface = NULL;
 	texture->GetSurfaceLevel(0, &tex_surface);
-	DX8_ErrorCode(D3DXLoadSurfaceFromSurface(tex_surface, NULL, NULL, surface, NULL, NULL, D3DX_FILTER_BOX, 0));
+	DX9_ErrorCode(D3DXLoadSurfaceFromSurface(tex_surface, NULL, NULL, surface, NULL, NULL, D3DX_FILTER_BOX, 0));
 	tex_surface->Release();
 
 	// Create mipmaps if needed
 	if (mip_level_count!=MIP_LEVELS_1) 
 	{
-		DX8_ErrorCode(D3DXFilterTexture(texture, NULL, 0, D3DX_FILTER_BOX));
+		DX9_ErrorCode(D3DXFilterTexture(texture, NULL, 0, D3DX_FILTER_BOX));
 	}
 
 	return texture;
@@ -2596,7 +2734,7 @@ IDirect3DTexture9 * DX8Wrapper::_Create_DX8_ZTexture
 
 	D3DFORMAT zfmt=WW3DZFormat_To_D3DFormat(zformat);
 
-	unsigned ret=DX8Wrapper::_Get_D3D_Device8()->CreateTexture
+	unsigned ret=DX8Wrapper::_Get_D3D_Device9()->CreateTexture
 	(
 		width,
 		height,
@@ -2609,7 +2747,7 @@ IDirect3DTexture9 * DX8Wrapper::_Create_DX8_ZTexture
 
 	if (ret==D3DERR_NOTAVAILABLE) 
 	{
-		Non_Fatal_Log_DX8_ErrorCode(ret,__FILE__,__LINE__);
+		Non_Fatal_Log_D3D_ErrorCode(ret,__FILE__,__LINE__);
 		return NULL;
 	}
 
@@ -2623,7 +2761,7 @@ IDirect3DTexture9 * DX8Wrapper::_Create_DX8_ZTexture
 		// Invalidate the mesh cache
 		WW3D::_Invalidate_Mesh_Cache();
 
-		ret=DX8Wrapper::_Get_D3D_Device8()->CreateTexture
+		ret=DX8Wrapper::_Get_D3D_Device9()->CreateTexture
 		(
 			width,
 			height,
@@ -2644,12 +2782,12 @@ IDirect3DTexture9 * DX8Wrapper::_Create_DX8_ZTexture
 		}
 		if (ret==D3DERR_OUTOFVIDEOMEMORY) 
 		{
-			Non_Fatal_Log_DX8_ErrorCode(ret,__FILE__,__LINE__);
+			Non_Fatal_Log_D3D_ErrorCode(ret,__FILE__,__LINE__);
 			return NULL;
 		}
 	}
 
-	DX8_ErrorCode(ret);
+	DX9_ErrorCode(ret);
 
 	texture->AddRef(); // don't release this texture
 
@@ -2689,7 +2827,7 @@ IDirect3DCubeTexture8* DX8Wrapper::_Create_DX8_Cube_Texture
 	{
 		unsigned ret=D3DXCreateCubeTexture
 		(
-			DX8Wrapper::_Get_D3D_Device8(),
+			DX8Wrapper::_Get_D3D_Device9(),
 			width,
 			mip_level_count,
 			D3DUSAGE_RENDERTARGET,
@@ -2700,7 +2838,7 @@ IDirect3DCubeTexture8* DX8Wrapper::_Create_DX8_Cube_Texture
 
 		if (ret==D3DERR_NOTAVAILABLE) 
 		{
-			Non_Fatal_Log_DX8_ErrorCode(ret,__FILE__,__LINE__);
+			Non_Fatal_Log_D3D_ErrorCode(ret,__FILE__,__LINE__);
 			return NULL;
 		}
 
@@ -2716,7 +2854,7 @@ IDirect3DCubeTexture8* DX8Wrapper::_Create_DX8_Cube_Texture
 
 			ret=D3DXCreateCubeTexture
 			(
-				DX8Wrapper::_Get_D3D_Device8(),
+				DX8Wrapper::_Get_D3D_Device9(),
 				width,
 				mip_level_count,
 				D3DUSAGE_RENDERTARGET,
@@ -2735,12 +2873,12 @@ IDirect3DCubeTexture8* DX8Wrapper::_Create_DX8_Cube_Texture
 			}
 			if (ret==D3DERR_OUTOFVIDEOMEMORY) 
 			{
-				Non_Fatal_Log_DX8_ErrorCode(ret,__FILE__,__LINE__);
+				Non_Fatal_Log_D3D_ErrorCode(ret,__FILE__,__LINE__);
 				return NULL;
 			}
 		}
 
-		DX8_ErrorCode(ret);
+		DX9_ErrorCode(ret);
 		// Just return the texture, no reduction
 		// allowed for render targets.
 		return texture;
@@ -2751,7 +2889,7 @@ IDirect3DCubeTexture8* DX8Wrapper::_Create_DX8_Cube_Texture
 	// if it happens we'll release assets and try again (anything is better than crashing).
 	unsigned ret=D3DXCreateCubeTexture
 	(
-		DX8Wrapper::_Get_D3D_Device8(),
+		DX8Wrapper::_Get_D3D_Device9(),
 		width,
 		mip_level_count,
 		0,
@@ -2772,7 +2910,7 @@ IDirect3DCubeTexture8* DX8Wrapper::_Create_DX8_Cube_Texture
 
 		ret=D3DXCreateCubeTexture
 		(
-			DX8Wrapper::_Get_D3D_Device8(),
+			DX8Wrapper::_Get_D3D_Device9(),
 			width,
 			mip_level_count,
 			0,
@@ -2792,7 +2930,7 @@ IDirect3DCubeTexture8* DX8Wrapper::_Create_DX8_Cube_Texture
 		}
 
 	}
-	DX8_ErrorCode(ret);
+	DX9_ErrorCode(ret);
 
 	return texture;
 }
@@ -2826,7 +2964,7 @@ IDirect3DVolumeTexture8* DX8Wrapper::_Create_DX8_Volume_Texture
 	// if it happens we'll release assets and try again (anything is better than crashing).
 	unsigned ret=D3DXCreateVolumeTexture
 	(
-		DX8Wrapper::_Get_D3D_Device8(),
+		DX8Wrapper::_Get_D3D_Device9(),
 		width,
 		height,
 		depth,
@@ -2849,7 +2987,7 @@ IDirect3DVolumeTexture8* DX8Wrapper::_Create_DX8_Volume_Texture
 
 		ret=D3DXCreateVolumeTexture
 		(
-			DX8Wrapper::_Get_D3D_Device8(),
+			DX8Wrapper::_Get_D3D_Device9(),
 			width,
 			height,
 			depth,
@@ -2871,7 +3009,7 @@ IDirect3DVolumeTexture8* DX8Wrapper::_Create_DX8_Volume_Texture
 		}
 
 	}
-	DX8_ErrorCode(ret);
+	DX9_ErrorCode(ret);
 
 	return texture;
 }
@@ -2887,7 +3025,7 @@ IDirect3DSurface9 * DX8Wrapper::_Create_DX8_Surface(unsigned int width, unsigned
 	// Paletted surfaces not supported!
 	WWASSERT(format!=D3DFMT_P8);
 
-	DX8CALL(CreateImageSurface(width, height, WW3DFormat_To_D3DFormat(format), &surface));
+	DX9CALL(CreateImageSurface(width, height, WW3DFormat_To_D3DFormat(format), &surface));
 
 	return surface;
 }
@@ -2963,7 +3101,7 @@ void DX8Wrapper::_Update_Texture(TextureClass *system, TextureClass *video)
 	WWASSERT(video);
 	WWASSERT(system->Get_Pool()==TextureClass::POOL_SYSTEMMEM);
 	WWASSERT(video->Get_Pool()==TextureClass::POOL_DEFAULT);
-	DX8CALL(UpdateTexture(system->Peek_D3D_Base_Texture(),video->Peek_D3D_Base_Texture()));
+	DX9CALL(UpdateTexture(system->Peek_D3D_Base_Texture(),video->Peek_D3D_Base_Texture()));
 }
 
 void DX8Wrapper::Compute_Caps(WW3DFormat display_format)
@@ -3085,7 +3223,8 @@ void DX8Wrapper::Set_Light_Environment(LightEnvironmentClass* light_env)
 		}
 
 		D3DLIGHT9 light;		
-		for (int l=0;l<light_count;++l) {
+		int l;
+		for (l=0;l<light_count;++l) {
 			
 			::ZeroMemory(&light, sizeof(D3DLIGHT9));
 			
@@ -3148,13 +3287,13 @@ IDirect3DSurface9 * DX8Wrapper::_Get_DX8_Front_Buffer()
 	DX8_THREAD_ASSERT();
 	D3DDISPLAYMODE mode;
 
-	DX8CALL(GetDisplayMode(&mode));
+	DX9CALL(GetDisplayMode(0,&mode));
 
 	IDirect3DSurface9 * fb=NULL;
 
-	DX8CALL(CreateImageSurface(mode.Width,mode.Height,D3DFMT_A8R8G8B8,&fb));
+	DX9CALL(CreateImageSurface(mode.Width,mode.Height,D3DFMT_A8R8G8B8,&fb));
 
-	DX8CALL(GetFrontBuffer(fb));
+	DX9CALL(GetFrontBuffer(fb));
 	return fb;
 }
 
@@ -3164,7 +3303,7 @@ SurfaceClass * DX8Wrapper::_Get_DX8_Back_Buffer(unsigned int num)
 
 	IDirect3DSurface9 * bb;
 	SurfaceClass *surf=NULL;
-	DX8CALL(GetBackBuffer(num,D3DBACKBUFFER_TYPE_MONO,&bb));
+	DX9CALL(GetBackBuffer(0,num,D3DBACKBUFFER_TYPE_MONO,&bb));
 	if (bb)
 	{
 		surf=NEW_REF(SurfaceClass,(bb));
@@ -3185,7 +3324,7 @@ DX8Wrapper::Create_Render_Target (int width, int height, WW3DFormat format)
 	// Use the current display format if format isn't specified
 	if (format==WW3D_FORMAT_UNKNOWN) {
 		D3DDISPLAYMODE mode;
-		DX8CALL(GetDisplayMode(&mode));
+		DX9CALL(GetDisplayMode(0,&mode));
 		format=D3DFormat_To_WW3DFormat(mode.Format);
 	}
 
@@ -3255,7 +3394,7 @@ void DX8Wrapper::Create_Render_Target
 		*depth_buffer=NULL;
 		return;
 /*		D3DDISPLAYMODE mode;
-		DX8CALL(GetDisplayMode(&mode));
+		DX9CALL(GetDisplayMode(&mode));
 		format=D3DFormat_To_WW3DFormat(mode.Format);*/
 	}
 
@@ -3356,7 +3495,7 @@ DX8Wrapper::Set_Render_Target(IDirect3DSwapChain9 *swap_chain)
 	//
 	//	Get the back buffer for the swap chain
 	//
-	LPDIRECT3DSURFACE8 render_target = NULL;
+	IDirect3DSurface9 *render_target = NULL;
 	swap_chain->GetBackBuffer (0, D3DBACKBUFFER_TYPE_MONO, &render_target);
 
 	//
@@ -3400,7 +3539,8 @@ DX8Wrapper::Set_Render_Target(IDirect3DSurface9 *render_target, bool use_default
 		//
 		if (DefaultRenderTarget != NULL) 
 		{
-			DX8CALL(SetRenderTarget (DefaultRenderTarget, DefaultDepthBuffer));
+			DX9CALL(SetRenderTarget(0, DefaultRenderTarget));
+			DX9CALL(SetDepthStencilSurface(DefaultDepthBuffer));
 			DefaultRenderTarget->Release ();
 			DefaultRenderTarget = NULL;
 			if (DefaultDepthBuffer) 
@@ -3436,7 +3576,7 @@ DX8Wrapper::Set_Render_Target(IDirect3DSurface9 *render_target, bool use_default
 		if (DefaultDepthBuffer == NULL) 
 		{
 //		IDirect3DSurface9 *depth_buffer = NULL;
-			DX8CALL(GetDepthStencilSurface (&DefaultDepthBuffer));
+			DX9CALL(GetDepthStencilSurface (&DefaultDepthBuffer));
 		}
 
 		//
@@ -3444,7 +3584,7 @@ DX8Wrapper::Set_Render_Target(IDirect3DSurface9 *render_target, bool use_default
 		//
 		if (DefaultRenderTarget == NULL) 
 		{
-			DX8CALL(GetRenderTarget (&DefaultRenderTarget));
+			DX9CALL(GetRenderTarget(&DefaultRenderTarget));
 		}
 
 		//
@@ -3476,11 +3616,13 @@ DX8Wrapper::Set_Render_Target(IDirect3DSurface9 *render_target, bool use_default
 			//
 			if (use_default_depth_buffer) 
 			{
-				DX8CALL(SetRenderTarget (CurrentRenderTarget, DefaultDepthBuffer));
+				DX9CALL(SetRenderTarget(0, CurrentRenderTarget));
+				DX9CALL(SetDepthStencilSurface(DefaultDepthBuffer));
 			}
 			else 
 			{
-				DX8CALL(SetRenderTarget (CurrentRenderTarget, NULL));
+				DX9CALL(SetRenderTarget(0, CurrentRenderTarget));
+				DX9CALL(SetDepthStencilSurface(NULL));
 			}
 		}
 	}
@@ -3529,7 +3671,8 @@ void DX8Wrapper::Set_Render_Target
 		//
 		if (DefaultRenderTarget != NULL) 
 		{
-			DX8CALL(SetRenderTarget (DefaultRenderTarget, DefaultDepthBuffer));
+			DX9CALL(SetRenderTarget(0, DefaultRenderTarget));
+			DX9CALL(SetDepthStencilSurface(DefaultDepthBuffer));
 			DefaultRenderTarget->Release ();
 			DefaultRenderTarget = NULL;
 			if (DefaultDepthBuffer) 
@@ -3564,7 +3707,7 @@ void DX8Wrapper::Set_Render_Target
 		if (DefaultDepthBuffer == NULL) 
 		{
 //		IDirect3DSurface9 *depth_buffer = NULL;
-			DX8CALL(GetDepthStencilSurface (&DefaultDepthBuffer));
+			DX9CALL(GetDepthStencilSurface (&DefaultDepthBuffer));
 		}
 
 		//
@@ -3572,7 +3715,7 @@ void DX8Wrapper::Set_Render_Target
 		//
 		if (DefaultRenderTarget == NULL) 
 		{
-			DX8CALL(GetRenderTarget (&DefaultRenderTarget));
+			DX9CALL(GetRenderTarget(&DefaultRenderTarget));
 		}
 
 		//
@@ -3604,7 +3747,8 @@ void DX8Wrapper::Set_Render_Target
 			//
 			//	Switch render targets
 			//
-			DX8CALL(SetRenderTarget (CurrentRenderTarget, CurrentDepthBuffer));
+			DX9CALL(SetRenderTarget(0, CurrentRenderTarget));
+			DX9CALL(SetDepthStencilSurface(CurrentDepthBuffer));
 		}
 	}
 
@@ -3638,21 +3782,21 @@ DX8Wrapper::Create_Additional_Swap_Chain (HWND render_window)
 	//	Create the swap chain
 	//
 	IDirect3DSwapChain9 *swap_chain = NULL;
-	DX8CALL(CreateAdditionalSwapChain(&params, &swap_chain));
+	DX9CALL(CreateAdditionalSwapChain(&params, &swap_chain));
 	return swap_chain;
 }
 
 void DX8Wrapper::Flush_DX8_Resource_Manager(unsigned int bytes)
 {
 	DX8_Assert();
-	DX8CALL(ResourceManagerDiscardBytes(bytes));
+	(void)bytes;
 }
 
 unsigned int DX8Wrapper::Get_Free_Texture_RAM()
 {
 	DX8_Assert();
 	number_of_DX8_calls++;
-	return DX8Wrapper::_Get_D3D_Device8()->GetAvailableTextureMem();
+	return DX8Wrapper::_Get_D3D_Device9()->GetAvailableTextureMem();
 }
 
 // Converts a linear gamma ramp to one that is controlled by:
@@ -3696,7 +3840,7 @@ void DX8Wrapper::Set_Gamma(float gamma,float bright,float contrast,bool calibrat
 	}
 
 	if (Get_Current_Caps()->Support_Gamma())	{
-		DX8Wrapper::_Get_D3D_Device8()->SetGammaRamp(flag,&ramp);
+		DX8Wrapper::_Get_D3D_Device9()->SetGammaRamp(0, flag, &ramp);
 	} else {
 		HWND hwnd = GetDesktopWindow();
 		HDC hdc = GetDC(hwnd);

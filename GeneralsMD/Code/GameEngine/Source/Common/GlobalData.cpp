@@ -68,6 +68,8 @@ GlobalData* GlobalData::m_theOriginal = NULL;
 /*static*/ const FieldParse GlobalData::s_GlobalDataFieldParseTable[] = 
 {
 	{ "Windowed",									INI::parseBool,				NULL,			offsetof( GlobalData, m_windowed ) },
+	{ "Borderless",								INI::parseBool,				NULL,			offsetof( GlobalData, m_borderless ) },
+	{ "VSync",										INI::parseBool,				NULL,			offsetof( GlobalData, m_vsync ) },
 	{ "XResolution",							INI::parseInt,				NULL,			offsetof( GlobalData, m_xResolution ) },
 	{ "YResolution",							INI::parseInt,				NULL,			offsetof( GlobalData, m_yResolution ) },
 	{ "MapName",									INI::parseAsciiString,NULL,			offsetof( GlobalData, m_mapName ) },
@@ -205,6 +207,8 @@ GlobalData* GlobalData::m_theOriginal = NULL;
 	{ "TimeOfDay",								INI::parseIndexList,	TimeOfDayNames,			offsetof( GlobalData, m_timeOfDay ) },
 	{ "Weather",									INI::parseIndexList,	WeatherNames,			offsetof( GlobalData, m_weather ) },
 	{ "MakeTrackMarks",						INI::parseBool,				NULL,			offsetof( GlobalData, m_makeTrackMarks ) },
+	{ "DayNightCycleEnabled",			INI::parseBool,				NULL,			offsetof( GlobalData, m_dayNightCycleEnabled ) },
+	{ "DayNightCycleDurationSecs",	INI::parseReal,			NULL,			offsetof( GlobalData, m_dayNightDurationSeconds ) },
 	{ "HideGarrisonFlags",						INI::parseBool,				NULL,			offsetof( GlobalData, m_hideGarrisonFlags ) },
 	{ "ForceModelsToFollowTimeOfDay",						INI::parseBool,				NULL,			offsetof( GlobalData, m_forceModelsToFollowTimeOfDay ) },
 	{ "ForceModelsToFollowWeather",						INI::parseBool,				NULL,			offsetof( GlobalData, m_forceModelsToFollowWeather ) },
@@ -607,7 +611,9 @@ GlobalData::GlobalData()
 	m_dumpAssetUsage = FALSE;
 	m_framesPerSecondLimit = 0;
 	m_chipSetType = 0;
-	m_windowed = 0;
+	m_windowed = FALSE;
+	m_borderless = FALSE;
+	m_vsync = TRUE;
 	m_xResolution = 800;
 	m_yResolution = 600;
 	m_maxShellScreens = 0;
@@ -696,6 +702,8 @@ GlobalData::GlobalData()
 	m_timeOfDay = TIME_OF_DAY_AFTERNOON;
 	m_weather = WEATHER_NORMAL;
 	m_makeTrackMarks = FALSE;
+	m_dayNightCycleEnabled = FALSE;
+	m_dayNightDurationSeconds = 1200.0f;
 	m_hideGarrisonFlags = FALSE;
 	m_forceModelsToFollowTimeOfDay = true;
 	m_forceModelsToFollowWeather = true;
@@ -923,6 +931,7 @@ GlobalData::GlobalData()
 
 
 	m_debugShowGraphicalFramerate = FALSE;
+	m_showFPSCounter = FALSE;
 
 	// By default, show all asserts.
 
@@ -1252,5 +1261,12 @@ void GlobalData::parseGameDataDefinition( INI* ini )
 
 	TheWritableGlobalData->m_xResolution = xres;
 	TheWritableGlobalData->m_yResolution = yres;
+
+	// Apply display mode (0=Fullscreen, 1=Borderless, 2=Windowed)
+	Int displayMode = optionPref.getDisplayMode();
+	TheWritableGlobalData->m_windowed   = (displayMode >= 1) ? TRUE : FALSE;
+	TheWritableGlobalData->m_borderless = (displayMode == 1) ? TRUE : FALSE;
+	TheWritableGlobalData->m_vsync      = optionPref.getVSync();
+	TheWritableGlobalData->m_showFPSCounter = optionPref.getFPSCounter();
 }
 

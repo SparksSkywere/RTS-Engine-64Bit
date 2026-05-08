@@ -34,20 +34,11 @@
 #include "GameClient/DebugDisplay.h"
 #include "GameClient/Display.h"
 #include "GameClient/GraphDraw.h"
+#include <intrin.h>
 
 __forceinline void ProfileGetTime(__int64 &t)
 {
-  _asm
-  {
-    mov ecx,[t]
-    push eax
-    push edx
-    rdtsc
-    mov [ecx],eax
-    mov [ecx+4],edx
-    pop edx
-    pop eax
-  };
+	t = __rdtsc();
 }
 
 #ifdef _INTERNAL

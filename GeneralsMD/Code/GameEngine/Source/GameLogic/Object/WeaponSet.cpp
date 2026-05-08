@@ -840,7 +840,7 @@ Bool WeaponSet::chooseBestWeaponForTarget(const Object* obj, const Object* victi
 		CommandSourceMask okSrcs = m_curWeaponTemplateSet->getNthCommandSourceMask((WeaponSlotType)i);
 		if( ( okSrcs & (1 << cmdSource) ) == 0 )
 		{
-			if( !( okSrcs & CMD_DEFAULT_SWITCH_WEAPON ) )
+			if( !( okSrcs & CMD_FROM_AI ) )
 			{
 				continue;
 			}

@@ -143,8 +143,9 @@ DDSFileClass::DDSFileClass(const char* name,unsigned reduction_factor)
 	}
 
 	LevelSizes=W3DNEWARRAY unsigned[MipLevels];
-unsigned level;`n	LevelOffsets=W3DNEWARRAY unsigned[MipLevels];
-	for (unsigned level=0;level<ReductionFactor;++level) 
+	unsigned level;
+	LevelOffsets=W3DNEWARRAY unsigned[MipLevels];
+	for (level=0;level<ReductionFactor;++level) 
 	{
 		if (level_size>16) 
 		{	// If surface is bigger than one block (8 or 16 bytes)...
@@ -338,11 +339,11 @@ void DDSFileClass::Copy_Level_To_Surface(unsigned level,IDirect3DSurface9* d3d_s
 	WWASSERT(d3d_surface);
 	// Verify that the destination surface size matches the source surface size
 	D3DSURFACE_DESC surface_desc;
-	DX8_ErrorCode(d3d_surface->GetDesc(&surface_desc));
+	DX9_ErrorCode(d3d_surface->GetDesc(&surface_desc));
 
 	// First lock the surface
 	D3DLOCKED_RECT locked_rect;
-	DX8_ErrorCode(d3d_surface->LockRect(&locked_rect,NULL,0));
+	DX9_ErrorCode(d3d_surface->LockRect(&locked_rect,NULL,0));
 
 	Copy_Level_To_Surface(
 		level,
@@ -354,7 +355,7 @@ void DDSFileClass::Copy_Level_To_Surface(unsigned level,IDirect3DSurface9* d3d_s
 		hsv_shift);
 
 	// Finally, unlock the surface
-	DX8_ErrorCode(d3d_surface->UnlockRect());
+	DX9_ErrorCode(d3d_surface->UnlockRect());
 }
 
 // ----------------------------------------------------------------------------

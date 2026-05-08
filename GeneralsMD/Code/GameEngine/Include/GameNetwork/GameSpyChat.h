@@ -37,7 +37,7 @@ class GameWindow;
 class WindowLayout;
 
 Bool GameSpySendChat(UnicodeString message, Bool isEmote, GameWindow *playerListbox = NULL);
-void GameSpyAddText( UnicodeString message, GameSpyColors color = GSCOLOR_DEFAULT );
+void GameSpyAddText( UnicodeString message, int color = 0 );
 
 extern GameWindow *progressTextWindow;				///< Text box on the progress screen
 extern GameWindow *quickmatchTextWindow;			///< Text box on the quickmatch screen

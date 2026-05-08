@@ -18,6 +18,8 @@
 
 
 #include "Common/URLLaunch.h"
+#include <tchar.h>
+#include <stdio.h>
 
 #define FILE_PREFIX     L"file://"
 
@@ -101,7 +103,7 @@ HRESULT MakeEscapedURL( LPWSTR pszInURL, LPWSTR *ppszOutURL )
         //
         // Copy all characters since the previous escapee
         //
-        int cchToCopy = pchToEscape - pszTemp;
+        int cchToCopy = (int)(pchToEscape - pszTemp);
 
         if( cchToCopy > 0 )
         {
@@ -113,7 +115,11 @@ HRESULT MakeEscapedURL( LPWSTR pszInURL, LPWSTR *ppszOutURL )
         //
         // Expand this character into an escape code and move on
         //
-        pchNext += swprintf( pchNext, L"%%%02x", *pchToEscape );
+        pchNext += _snwprintf(
+            pchNext,
+            cchNeeded - int(pchNext - *ppszOutURL),
+            L"%%%02x",
+            *pchToEscape );
 
         pszTemp = pchToEscape + 1;
     }

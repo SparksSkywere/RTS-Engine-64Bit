@@ -107,6 +107,8 @@ public:
 	Int m_framesPerSecondLimit;
 	Int	m_chipSetType;	///<See W3DShaderManager::ChipsetType for options
 	Bool m_windowed;
+	Bool m_borderless;
+	Bool m_vsync;
 	Int m_xResolution;
 	Int m_yResolution;
 	Int m_maxShellScreens;  ///< this many shells layouts can be loaded at once
@@ -213,6 +215,10 @@ public:
 	TimeOfDay	m_timeOfDay;
 	Weather m_weather;
 	Bool m_makeTrackMarks;
+
+	// Day/night cycle
+	Bool  m_dayNightCycleEnabled;        ///< If TRUE, TOD lighting smoothly cycles over time
+	Real  m_dayNightDurationSeconds;     ///< How long a full day/night cycle takes (default 1200 = 20 min)
 	Bool m_hideGarrisonFlags;
 	Bool m_forceModelsToFollowTimeOfDay;
 	Bool m_forceModelsToFollowWeather;
@@ -423,6 +429,7 @@ public:
 	Money m_defaultStartingCash;				///< The amount of cash a player starts with by default.
 	
 	Bool m_debugShowGraphicalFramerate;		///< Whether or not to show the graphical framerate bar.
+	Bool m_showFPSCounter;					///< Whether to show the FPS counter overlay in-game.
 
 	Int m_powerBarBase;										///< Logrithmic base for the power bar scale
 	Real m_powerBarIntervals;							///< how many logrithmic intervals the width will be divided into

@@ -818,10 +818,10 @@ TextureClass::TextureClass(IDirect3DBaseTexture9* d3d_texture)
 	
 	Set_D3D_Base_Texture(d3d_texture);
 	IDirect3DSurface9* surface;
-	DX8_ErrorCode(Peek_D3D_Texture()->GetSurfaceLevel(0,&surface));
+	DX9_ErrorCode(Peek_D3D_Texture()->GetSurfaceLevel(0,&surface));
 	D3DSURFACE_DESC d3d_desc;
 	::ZeroMemory(&d3d_desc, sizeof(D3DSURFACE_DESC));
-	DX8_ErrorCode(surface->GetDesc(&d3d_desc));
+	DX9_ErrorCode(surface->GetDesc(&d3d_desc));
 	Width=d3d_desc.Width;
 	Height=d3d_desc.Height;
 	TextureFormat=D3DFormat_To_WW3DFormat(d3d_desc.Format);
@@ -909,10 +909,10 @@ void TextureClass::Apply_New_Surface
 
 	WWASSERT(d3d_texture);
 	IDirect3DSurface9* surface;
-	DX8_ErrorCode(Peek_D3D_Texture()->GetSurfaceLevel(0,&surface));
+	DX9_ErrorCode(Peek_D3D_Texture()->GetSurfaceLevel(0,&surface));
 	D3DSURFACE_DESC d3d_desc;
 	::ZeroMemory(&d3d_desc, sizeof(D3DSURFACE_DESC));
-	DX8_ErrorCode(surface->GetDesc(&d3d_desc));
+	DX9_ErrorCode(surface->GetDesc(&d3d_desc));
 	if (initialized) 
 	{
 		TextureFormat=D3DFormat_To_WW3DFormat(d3d_desc.Format);
@@ -991,7 +991,7 @@ SurfaceClass *TextureClass::Get_Surface_Level(unsigned int level)
 	}
 
 	IDirect3DSurface9 *d3d_surface = NULL;
-	DX8_ErrorCode(Peek_D3D_Texture()->GetSurfaceLevel(level, &d3d_surface));
+	DX9_ErrorCode(Peek_D3D_Texture()->GetSurfaceLevel(level, &d3d_surface));
 	SurfaceClass *surface = new SurfaceClass(d3d_surface);
 	d3d_surface->Release();
 
@@ -1024,7 +1024,7 @@ IDirect3DSurface9 *TextureClass::Get_D3D_Surface_Level(unsigned int level)
 	}
 
 	IDirect3DSurface9 *d3d_surface = NULL;
-	DX8_ErrorCode(Peek_D3D_Texture()->GetSurfaceLevel(level, &d3d_surface));
+	DX9_ErrorCode(Peek_D3D_Texture()->GetSurfaceLevel(level, &d3d_surface));
 	return d3d_surface;
 }
 
@@ -1039,8 +1039,8 @@ unsigned TextureClass::Get_Texture_Memory_Usage() const
 	for (unsigned i=0;i<Peek_D3D_Texture()->GetLevelCount();++i) 
 	{
 		D3DSURFACE_DESC desc;
-		DX8_ErrorCode(Peek_D3D_Texture()->GetLevelDesc(i,&desc));
-		size+=desc.Size;
+		DX9_ErrorCode(Peek_D3D_Texture()->GetLevelDesc(i,&desc));
+		size += int(desc.Width * desc.Height * 4);
 	}
 	return size;
 }
@@ -1290,10 +1290,10 @@ void ZTextureClass::Apply_New_Surface
 
 	WWASSERT(Peek_D3D_Texture());
 	IDirect3DSurface9* surface;
-	DX8_ErrorCode(Peek_D3D_Texture()->GetSurfaceLevel(0,&surface));
+	DX9_ErrorCode(Peek_D3D_Texture()->GetSurfaceLevel(0,&surface));
 	D3DSURFACE_DESC d3d_desc;
 	::ZeroMemory(&d3d_desc, sizeof(D3DSURFACE_DESC));
-	DX8_ErrorCode(surface->GetDesc(&d3d_desc));
+	DX9_ErrorCode(surface->GetDesc(&d3d_desc));
 	if (initialized) 
 	{
 		DepthStencilTextureFormat=D3DFormat_To_WW3DZFormat(d3d_desc.Format);
@@ -1316,7 +1316,7 @@ IDirect3DSurface9* ZTextureClass::Get_D3D_Surface_Level(unsigned int level)
 	}
 
 	IDirect3DSurface9 *d3d_surface = NULL;
-	DX8_ErrorCode(Peek_D3D_Texture()->GetSurfaceLevel(level, &d3d_surface));
+	DX9_ErrorCode(Peek_D3D_Texture()->GetSurfaceLevel(level, &d3d_surface));
 	return d3d_surface;
 }
 
@@ -1331,8 +1331,8 @@ unsigned ZTextureClass::Get_Texture_Memory_Usage() const
 	for (unsigned i=0;i<Peek_D3D_Texture()->GetLevelCount();++i) 
 	{
 		D3DSURFACE_DESC desc;
-		DX8_ErrorCode(Peek_D3D_Texture()->GetLevelDesc(i,&desc));
-		size+=desc.Size;
+		DX9_ErrorCode(Peek_D3D_Texture()->GetLevelDesc(i,&desc));
+		size += int(desc.Width * desc.Height * 4);
 	}
 	return size;
 }
@@ -1563,10 +1563,10 @@ CubeTextureClass::CubeTextureClass(IDirect3DBaseTexture9* d3d_texture)
 
 	Peek_Texture()->AddRef();
 	IDirect3DSurface9* surface;
-	DX8_ErrorCode(Peek_D3D_Texture()->GetSurfaceLevel(0,&surface));
+	DX9_ErrorCode(Peek_D3D_Texture()->GetSurfaceLevel(0,&surface));
 	D3DSURFACE_DESC d3d_desc;
 	::ZeroMemory(&d3d_desc, sizeof(D3DSURFACE_DESC));
-	DX8_ErrorCode(surface->GetDesc(&d3d_desc));
+	DX9_ErrorCode(surface->GetDesc(&d3d_desc));
 	Width=d3d_desc.Width;
 	Height=d3d_desc.Height;
 	TextureFormat=D3DFormat_To_WW3DFormat(d3d_desc.Format);
@@ -1610,7 +1610,7 @@ void CubeTextureClass::Apply_New_Surface
 	WWASSERT(d3d_texture);
 	D3DSURFACE_DESC d3d_desc;
 	::ZeroMemory(&d3d_desc, sizeof(D3DSURFACE_DESC));
-	DX8_ErrorCode(Peek_D3D_CubeTexture()->GetLevelDesc(0,&d3d_desc));
+	DX9_ErrorCode(Peek_D3D_CubeTexture()->GetLevelDesc(0,&d3d_desc));
 
 	if (initialized) 
 	{
@@ -1848,10 +1848,10 @@ CubeTextureClass::CubeTextureClass(IDirect3DBaseTexture9* d3d_texture)
 
 	Peek_Texture()->AddRef();
 	IDirect3DSurface9* surface;
-	DX8_ErrorCode(Peek_D3D_Texture()->GetSurfaceLevel(0,&surface));
+	DX9_ErrorCode(Peek_D3D_Texture()->GetSurfaceLevel(0,&surface));
 	D3DSURFACE_DESC d3d_desc;
 	::ZeroMemory(&d3d_desc, sizeof(D3DSURFACE_DESC));
-	DX8_ErrorCode(surface->GetDesc(&d3d_desc));
+	DX9_ErrorCode(surface->GetDesc(&d3d_desc));
 	Width=d3d_desc.Width;
 	Height=d3d_desc.Height;
 	TextureFormat=D3DFormat_To_WW3DFormat(d3d_desc.Format);
@@ -1899,7 +1899,7 @@ void VolumeTextureClass::Apply_New_Surface
 	D3DVOLUME_DESC d3d_desc;
 	::ZeroMemory(&d3d_desc, sizeof(D3DVOLUME_DESC));
 
-	DX8_ErrorCode(Peek_D3D_VolumeTexture()->GetLevelDesc(0,&d3d_desc));
+	DX9_ErrorCode(Peek_D3D_VolumeTexture()->GetLevelDesc(0,&d3d_desc));
 
 	if (initialized)
 	{

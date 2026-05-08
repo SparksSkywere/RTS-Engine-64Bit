@@ -696,7 +696,7 @@
     <None Include="..\Run\Data\Generals.str" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="Main\Generals.ico">
+    <Image Include="Main\GeneralsZH.ico">
       <Filter>Resources</Filter>
     </Image>
     <Image Include="Main\Install_Final.bmp" />

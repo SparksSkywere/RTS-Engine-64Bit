@@ -820,9 +820,6 @@ WindowLayout *Shell::getOptionsLayout( Bool create )
 	if ((m_optionsLayout == NULL) && (create == TRUE))
 	{
 		m_optionsLayout = TheWindowManager->winCreateLayout( AsciiString( "Menus/OptionsMenu.wnd" ) );
-
-		// sanity
-		DEBUG_ASSERTCRASH( m_optionsLayout, ("Unable to create options menu layout\n") );
 	}
 
 	// return the layout

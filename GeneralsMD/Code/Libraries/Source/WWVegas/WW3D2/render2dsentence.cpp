@@ -945,9 +945,9 @@ void	Render2DSentenceClass::Build_Sentence_Centered (const WCHAR *text, int *hkX
 				WWASSERT (((TextureOffset.I + char_spacing) < CurrTextureSize) && ((TextureOffset.J + char_height) < CurrTextureSize));
 				
 				//
-				//	Blit the character to the surface
+				//	Blit the character to the surface (guard against assertion auto-ignored in fullscreen)
 				//
-				if(!dontBlit)
+				if(!dontBlit && (TextureOffset.I + char_spacing) < CurrTextureSize && (TextureOffset.J + char_height) < CurrTextureSize)
 					Font->Blit_Char (ch, LockedPtr, LockedStride, TextureOffset.I, TextureOffset.J);
 				
 				if (dontBlit) {
@@ -1136,9 +1136,11 @@ Vector2	Render2DSentenceClass::Build_Sentence_Not_Centered (const WCHAR *text, i
 			WWASSERT (((TextureOffset.I + char_spacing) < CurrTextureSize) && ((TextureOffset.J + char_height) < CurrTextureSize));
 
 			//
-			//	Blit the character to the surface
+			//	Blit the character to the surface (guard against assertion auto-ignored in fullscreen)
 			//
-			if (!justCalcExtents && !dontBlit )
+			if (!justCalcExtents && !dontBlit
+				&& (TextureOffset.I + char_spacing) < CurrTextureSize
+				&& (TextureOffset.J + char_height) < CurrTextureSize)
 			{
 				Font->Blit_Char (ch, LockedPtr, LockedStride, TextureOffset.I, TextureOffset.J);			
 			}
@@ -1720,8 +1722,8 @@ FontCharsClass::Grow_Unicode_Array (WCHAR ch)
 		return ;
 	} 
 
-	uint16 first_index	= min( FirstUnicodeChar, ch );
-	uint16 last_index		= max( LastUnicodeChar, ch );
+	uint16 first_index	= (FirstUnicodeChar < ch) ? FirstUnicodeChar : ch;
+	uint16 last_index		= (LastUnicodeChar > ch) ? LastUnicodeChar : ch;
 	uint16 count			= (last_index - first_index) + 1;
 
 	//

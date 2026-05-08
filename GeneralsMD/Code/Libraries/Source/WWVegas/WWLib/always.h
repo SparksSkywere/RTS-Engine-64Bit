@@ -132,12 +132,26 @@ private: \
 		return The##ARGCLASS##Pool; \
 	} \
 protected: \
-	virtual int glueEnforcer() const { return (int)sizeof(this); } \
+	virtual int glueEnforcer() const { return (int)sizeof(ARGCLASS); } \
 public: \
 	inline void* operator new(size_t s) { return allocateFromW3DMemPool(getClassMemoryPool(), (int)s); } \
 	inline void operator delete(void *p) { freeFromW3DMemPool(getClassMemoryPool(), p); } \
 	inline void* operator new(size_t s, const char* msg, int unused) { return allocateFromW3DMemPool(getClassMemoryPool(), (int)s, msg, unused); } \
 	inline void operator delete(void *p, const char* msg, int unused) { freeFromW3DMemPool(getClassMemoryPool(), p); } \
+
+// Variant of W3DMPO_GLUE that satisfies the W3DMPO interface but uses the CRT heap
+// directly (malloc/free) instead of the W3D pool system.  Use this for classes whose
+// sizeof() is large or whose pool entry in MemoryInit.cpp produces a size mismatch on
+// x64 (e.g. FontCharsClass, FontCharsClassCharDataStruct).
+// MEMORYPOOL_OVERRIDE_MALLOC is NOT defined in this build so malloc/free are safe.
+#define W3DMPO_GLUE_HEAP(ARGCLASS) \
+protected: \
+	virtual int glueEnforcer() const { return (int)sizeof(ARGCLASS); } \
+public: \
+	inline void* operator new(size_t s) { return ::malloc(s); } \
+	inline void operator delete(void *p) { ::free(p); } \
+	inline void* operator new(size_t s, const char*, int) { return ::malloc(s); } \
+	inline void operator delete(void *p, const char*, int) { ::free(p); } \
 
 // ----------------------------------------------------------------------------
 class W3DMPO

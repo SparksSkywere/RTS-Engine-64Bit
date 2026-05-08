@@ -35,6 +35,7 @@
 #ifdef _WINDOWS
 #include <winsock.h>
 #include <io.h>
+  typedef SOCKET UDPHandle;
 //#define close _close
 //#define read  _read
 //#define write _write
@@ -49,6 +50,7 @@
 #include <sys/time.h>
 #include <fcntl.h>
 #include <limits.h>
+  typedef Int UDPHandle;
 #endif
 
 #ifdef AIX
@@ -66,7 +68,7 @@ class UDP
 {
  // DATA
  private:
-  Int       fd; 
+  UDPHandle       fd; 
   UnsignedInt       myIP;
   UnsignedShort       myPort;
   struct       sockaddr_in  addr;

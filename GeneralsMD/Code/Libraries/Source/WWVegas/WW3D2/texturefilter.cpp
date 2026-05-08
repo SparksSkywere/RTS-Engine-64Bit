@@ -147,7 +147,8 @@ void TextureFilterClass::_Init_Filters(TextureFilterMode filter_type)
 #endif
 
 	// For stages above zero, set best filter to the same as the stage zero, except if anisotropic
-	for (int i=1;i<MAX_TEXTURE_STAGES;++i) {
+	int i;
+	for (i=1;i<MAX_TEXTURE_STAGES;++i) {
 /*		_MinTextureFilters[i][FILTER_TYPE_NONE]=D3DTEXF_POINT;
 		_MagTextureFilters[i][FILTER_TYPE_NONE]=D3DTEXF_POINT;
 		_MipMapFilters[i][FILTER_TYPE_NONE]=D3DTEXF_NONE;
@@ -187,7 +188,6 @@ void TextureFilterClass::_Init_Filters(TextureFilterMode filter_type)
 	}
 
 	// Set default to best. The level of best filter mode is controlled by the input parameter.
-	int i; // Reuse for second loop
 	for (i=0;i<MAX_TEXTURE_STAGES;++i) {
 		_MinTextureFilters[i][FILTER_TYPE_DEFAULT]=_MinTextureFilters[i][FILTER_TYPE_BEST];
 		_MagTextureFilters[i][FILTER_TYPE_DEFAULT]=_MagTextureFilters[i][FILTER_TYPE_BEST];

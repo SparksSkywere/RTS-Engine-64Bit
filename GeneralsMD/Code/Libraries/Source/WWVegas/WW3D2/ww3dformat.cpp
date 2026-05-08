@@ -37,7 +37,6 @@
  * Functions:                                                                                  *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
-#define POINTER_64 __ptr64
 #include "ww3dformat.h"
 #include "vector4.h"
 #include "wwdebug.h"

@@ -200,6 +200,7 @@ protected:
 	VideoBuffer						*m_videoBuffer;						///< Video playback buffer
 	VideoStreamInterface	*m_videoStream;						///< Video stream;
 	AsciiString						 m_currentlyPlayingMovie;	///< The currently playing video. Used to notify TheScriptEngine of completed videos.
+	Bool									 m_pausedAudioForMovie;	///< True when this display instance paused audio for movie playback.
 
 	// Debug display data
 	DebugDisplayInterface *m_debugDisplay;					///< Actual debug display

@@ -94,7 +94,7 @@ static int refcompress(unsigned char *from, int len, unsigned char *dest, int ma
         tptr=cptr-1;
         hash = HASH(cptr);
         hoffset = hashtbl[hash];
-        minhoffset = qmax(cptr-from-131071,0);
+        minhoffset = qmax((int)(cptr - from - 131071), 0);
 
 
         if (hoffset>=minhoffset)
@@ -107,7 +107,7 @@ static int refcompress(unsigned char *from, int len, unsigned char *dest, int ma
                     tlen = matchlen(cptr,tptr,mlen);
                     if (tlen > blen)
                     {
-                        toffset = (cptr-1)-tptr;
+                        toffset = (unsigned int)((cptr - 1) - tptr);
                         if (toffset<1024 && tlen<=10)       /* two byte int form */
                             tcost = 2;
                         else if (toffset<16384 && tlen<=67) /* three byte int form */
@@ -134,7 +134,7 @@ static int refcompress(unsigned char *from, int len, unsigned char *dest, int ma
 //        if (bcost>blen || (blen<=2 && bcost==blen && !ccost) || (len<4))
         if (bcost>=blen || len<4)
         {
-            hoffset = (cptr-from);
+            hoffset = (int)(cptr - from);
             link[hoffset&131071] = hashtbl[hash];
             hashtbl[hash] = hoffset;
 
@@ -184,7 +184,7 @@ static int refcompress(unsigned char *from, int len, unsigned char *dest, int ma
 
             if (quick)
             {
-                hoffset = (cptr-from);
+                hoffset = (int)(cptr - from);
                 link[hoffset&131071] = hashtbl[hash];
                 hashtbl[hash] = hoffset;
                 cptr += blen;
@@ -194,7 +194,7 @@ static int refcompress(unsigned char *from, int len, unsigned char *dest, int ma
                 for (i=0; i < (int)blen; ++i)
                 {
                     hash = HASH(cptr);
-                    hoffset = (cptr-from);
+                    hoffset = (int)(cptr - from);
                     link[hoffset&131071] = hashtbl[hash];
                     hashtbl[hash] = hoffset;
                     ++cptr;
@@ -226,7 +226,7 @@ static int refcompress(unsigned char *from, int len, unsigned char *dest, int ma
 
 	gfree(link);
 	gfree(hashtbl);
-    return(to-dest);
+    return((int)(to - dest));
 }
 
 

@@ -52,7 +52,6 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
-#define POINTER_64 __ptr64
 #include <d3d9.h>
 #include "dx9compat.h"
 #include "matrix4.h"
@@ -84,11 +83,6 @@ const unsigned MAX_VERTEX_STREAMS=2;
 const unsigned MAX_VERTEX_SHADER_CONSTANTS=96;
 const unsigned MAX_PIXEL_SHADER_CONSTANTS=8;
 const unsigned MAX_SHADOW_MAPS=1;
-
-#define prevVer
-#define nextVer
-#define __volatile unsigned
-
 
 enum {
 	BUFFER_TYPE_DX8,
@@ -126,23 +120,23 @@ extern unsigned number_of_DX8_calls;
 extern bool _DX8SingleThreaded;
 
 void DX8_Assert();
-void Log_DX8_ErrorCode(unsigned res);
+void Log_D3D_ErrorCode(unsigned res);
 
-WWINLINE void DX8_ErrorCode(unsigned res)
+WWINLINE void DX9_ErrorCode(unsigned res)
 {
 	if (res==D3D_OK) return;
-	Log_DX8_ErrorCode(res);
+	Log_D3D_ErrorCode(res);
 }
 
 #ifdef WWDEBUG
-#define DX8CALL_HRES(x,res) DX8_Assert(); res = DX8Wrapper::_Get_D3D_Device8()->x; DX8_ErrorCode(res); number_of_DX8_calls++;
-#define DX8CALL(x) DX8_Assert(); DX8_ErrorCode(DX8Wrapper::_Get_D3D_Device8()->x); number_of_DX8_calls++;
-#define DX8CALL_D3D(x) DX8_Assert(); DX8_ErrorCode(DX8Wrapper::_Get_D3D8()->x); number_of_DX8_calls++;
+#define DX9CALL_HRES(x,res) DX8_Assert(); res = DX8Wrapper::_Get_D3D_Device9()->x; DX9_ErrorCode(res); number_of_DX8_calls++;
+#define DX9CALL(x) DX8_Assert(); DX9_ErrorCode(DX8Wrapper::_Get_D3D_Device9()->x); number_of_DX8_calls++;
+#define DX9CALL_D3D(x) DX8_Assert(); DX9_ErrorCode(DX8Wrapper::_Get_D3D8()->x); number_of_DX8_calls++;
 #define DX8_THREAD_ASSERT() if (_DX8SingleThreaded) { WWASSERT_PRINT(DX8Wrapper::_Get_Main_Thread_ID()==ThreadClass::_Get_Current_Thread_ID(),"DX8Wrapper::DX8 calls must be called from the main thread!"); }
 #else
-#define DX8CALL_HRES(x,res) res = DX8Wrapper::_Get_D3D_Device8()->x; number_of_DX8_calls++;
-#define DX8CALL(x) DX8Wrapper::_Get_D3D_Device8()->x; number_of_DX8_calls++;
-#define DX8CALL_D3D(x) DX8Wrapper::_Get_D3D8()->x; number_of_DX8_calls++;
+#define DX9CALL_HRES(x,res) res = DX8Wrapper::_Get_D3D_Device9()->x; number_of_DX8_calls++;
+#define DX9CALL(x) DX8Wrapper::_Get_D3D_Device9()->x; number_of_DX8_calls++;
+#define DX9CALL_D3D(x) DX8Wrapper::_Get_D3D8()->x; number_of_DX8_calls++;
 #define DX8_THREAD_ASSERT() ;
 #endif
 
@@ -517,8 +511,10 @@ public:
 	// shader system udpates KJM v
 	static void Apply_Default_State();
 
-	static void Set_Vertex_Shader(DWORD vertex_shader);
-	static void Set_Pixel_Shader(DWORD pixel_shader);
+	static void Set_Vertex_Shader(UINT_PTR vertex_shader);
+	static void Set_Pixel_Shader(UINT_PTR pixel_shader);
+	static void Delete_Vertex_Shader(UINT_PTR vertex_shader) {}  // No-op in DX9 (handles are reinterpreted pointers)
+	static void Delete_Pixel_Shader(UINT_PTR pixel_shader) {}   // No-op in DX9 (handles are reinterpreted pointers)
 
 	static void Set_Vertex_Shader_Constant(int reg, const void* data, int count);
 	static void Set_Pixel_Shader_Constant(int reg, const void* data, int count);
@@ -533,12 +529,13 @@ public:
 
 
 
-	static IDirect3DDevice9* _Get_D3D_Device8() { return D3DDevice; }
+	static IDirect3DDevice9* _Get_D3D_Device9() { return D3DDevice; }
 	static IDirect3D9* _Get_D3D8() { return D3DInterface; }
 	/// Returns the display format - added by TR for video playback - not part of W3D
 	static WW3DFormat	getBackBufferFormat( void );
 	static bool Reset_Device(bool reload_assets=true);
 
+	static const DX8Caps*	Peek_Current_Caps() { return CurrentCaps; }
 	static const DX8Caps*	Get_Current_Caps() { WWASSERT(CurrentCaps); return CurrentCaps; }
 
 	static bool Registry_Save_Render_Device( const char * sub_key );
@@ -655,8 +652,8 @@ protected:
 	static D3DMATRIX						old_prj;
 
 	// shader system updates KJM v
-	static DWORD							Vertex_Shader;
-	static DWORD							Pixel_Shader;
+	static UINT_PTR							Vertex_Shader;
+	static UINT_PTR							Pixel_Shader;
 
 	static Vector4							Vertex_Shader_Constants[MAX_VERTEX_SHADER_CONSTANTS];
 	static Vector4							Pixel_Shader_Constants[MAX_PIXEL_SHADER_CONSTANTS];
@@ -722,7 +719,7 @@ protected:
 };
 
 // shader system updates KJM v
-WWINLINE void DX8Wrapper::Set_Vertex_Shader(DWORD vertex_shader)
+WWINLINE void DX8Wrapper::Set_Vertex_Shader(UINT_PTR vertex_shader)
 {
 #if 0 //(gth) some code is bypassing this acessor function so we can't count on this variable...
 	// may be incorrect if shaders are created and destroyed dynamically
@@ -730,16 +727,16 @@ WWINLINE void DX8Wrapper::Set_Vertex_Shader(DWORD vertex_shader)
 #endif
 
 	Vertex_Shader=vertex_shader;
-	D3D9_SetVertexShader(DX8Wrapper::_Get_D3D_Device8(), Vertex_Shader); number_of_DX8_calls++;
+	D3D9_SetVertexShader(DX8Wrapper::_Get_D3D_Device9(), Vertex_Shader); number_of_DX8_calls++;
 }
 
-WWINLINE void DX8Wrapper::Set_Pixel_Shader(DWORD pixel_shader)
+WWINLINE void DX8Wrapper::Set_Pixel_Shader(UINT_PTR pixel_shader)
 {
 	// may be incorrect if shaders are created and destroyed dynamically
 	if (Pixel_Shader==pixel_shader) return;
 
 	Pixel_Shader=pixel_shader;
-	D3D9_SetPixelShader(DX8Wrapper::_Get_D3D_Device8(), Pixel_Shader); number_of_DX8_calls++;
+	D3D9_SetPixelShader(DX8Wrapper::_Get_D3D_Device9(), Pixel_Shader); number_of_DX8_calls++;
 }
 
 WWINLINE void DX8Wrapper::Set_Vertex_Shader_Constant(int reg, const void* data, int count)
@@ -750,7 +747,7 @@ WWINLINE void DX8Wrapper::Set_Vertex_Shader_Constant(int reg, const void* data, 
 	if (memcmp(data, &Vertex_Shader_Constants[reg],memsize)==0) return;
 
 	memcpy(&Vertex_Shader_Constants[reg],data,memsize);
-	D3D9_SetVertexShaderConstant(DX8Wrapper::_Get_D3D_Device8(), reg,data,count); number_of_DX8_calls++;
+	D3D9_SetVertexShaderConstant(DX8Wrapper::_Get_D3D_Device9(), reg,data,count); number_of_DX8_calls++;
 }
 
 WWINLINE void DX8Wrapper::Set_Pixel_Shader_Constant(int reg, const void* data, int count)
@@ -761,7 +758,7 @@ WWINLINE void DX8Wrapper::Set_Pixel_Shader_Constant(int reg, const void* data, i
 	if (memcmp(data, &Pixel_Shader_Constants[reg],memsize)==0) return;
 
 	memcpy(&Pixel_Shader_Constants[reg],data,memsize);
-	D3D9_SetPixelShaderConstant(DX8Wrapper::_Get_D3D_Device8(), reg,data,count); number_of_DX8_calls++;
+	D3D9_SetPixelShaderConstant(DX8Wrapper::_Get_D3D_Device9(), reg,data,count); number_of_DX8_calls++;
 }
 // shader system updates KJM ^
 
@@ -776,7 +773,7 @@ WWINLINE void DX8Wrapper::_Set_DX8_Transform(D3DTRANSFORMSTATETYPE transform,con
 		DX8Transforms[transform]=m;
 		SNAPSHOT_SAY(("DX8 - SetTransform %d [%f,%f,%f,%f][%f,%f,%f,%f][%f,%f,%f,%f][%f,%f,%f,%f]\n",transform,m[0][0],m[0][1],m[0][2],m[0][3],m[1][0],m[1][1],m[1][2],m[1][3],m[2][0],m[2][1],m[2][2],m[2][3],m[3][0],m[3][1],m[3][2],m[3][3]));
 		DX8_RECORD_MATRIX_CHANGE();
-		DX8CALL(SetTransform(transform,(D3DMATRIX*)&m));
+		DX9CALL(SetTransform(transform,(D3DMATRIX*)&m));
 	}
 }
 
@@ -792,13 +789,13 @@ WWINLINE void DX8Wrapper::_Set_DX8_Transform(D3DTRANSFORMSTATETYPE transform,con
 		DX8Transforms[transform]=mtx;
 		SNAPSHOT_SAY(("DX8 - SetTransform %d [%f,%f,%f,%f][%f,%f,%f,%f][%f,%f,%f,%f]\n",transform,m[0][0],m[0][1],m[0][2],m[0][3],m[1][0],m[1][1],m[1][2],m[1][3],m[2][0],m[2][1],m[2][2],m[2][3]));
 		DX8_RECORD_MATRIX_CHANGE();
-		DX8CALL(SetTransform(transform,(D3DMATRIX*)&m));
+		DX9CALL(SetTransform(transform,(D3DMATRIX*)&m));
 	}
 }
 
 WWINLINE void DX8Wrapper::_Get_DX8_Transform(D3DTRANSFORMSTATETYPE transform, Matrix4x4& m)
 {
-	DX8CALL(GetTransform(transform,(D3DMATRIX*)&m));
+	DX9CALL(GetTransform(transform,(D3DMATRIX*)&m));
 }
 
 // ----------------------------------------------------------------------------
@@ -857,28 +854,31 @@ WWINLINE void DX8Wrapper::Set_DX8_Material(const D3DMATERIAL9* mat)
 	DX8_RECORD_MATERIAL_CHANGE();
 	WWASSERT(mat);
 	SNAPSHOT_SAY(("DX8 - SetMaterial\n"));
-	DX8CALL(SetMaterial(mat));
+	DX9CALL(SetMaterial(mat));
 }
 
 WWINLINE void DX8Wrapper::Set_DX8_Light(int index, D3DLIGHT9* light)
 {
 	if (light) {
 		DX8_RECORD_LIGHT_CHANGE();
-		DX8CALL(SetLight(index,light));
-		DX8CALL(LightEnable(index,TRUE));
+		DX9CALL(SetLight(index,light));
+		DX9CALL(LightEnable(index,TRUE));
 		CurrentDX8LightEnables[index]=true;
 		SNAPSHOT_SAY(("DX8 - SetLight %d\n",index));
 	}
 	else if (CurrentDX8LightEnables[index]) {
 		DX8_RECORD_LIGHT_CHANGE();
 		CurrentDX8LightEnables[index]=false;
-		DX8CALL(LightEnable(index,FALSE));
+		DX9CALL(LightEnable(index,FALSE));
 		SNAPSHOT_SAY(("DX8 - DisableLight %d\n",index));
 	}
 }
 
 WWINLINE void DX8Wrapper::Set_DX8_Render_State(D3DRENDERSTATETYPE state, unsigned value)
 {
+	// D3D8-legacy states remapped to sentinel values (>=256) in dx9compat.h are not valid in D3D9.
+	if ((DWORD)state >= 256) return;
+
 	// Can't monitor state changes because setShader call to GERD may change the states!
 	if (RenderStates[state]==value) return;
 
@@ -893,24 +893,35 @@ WWINLINE void DX8Wrapper::Set_DX8_Render_State(D3DRENDERSTATETYPE state, unsigne
 #endif
 
 	RenderStates[state]=value;
-	DX8CALL(SetRenderState( state, value ));
+	DX9CALL(SetRenderState( state, value ));
 	DX8_RECORD_RENDER_STATE_CHANGE();
 }
 
 WWINLINE void DX8Wrapper::Set_DX8_Clip_Plane(DWORD Index, CONST float* pPlane)
 {
-	DX8CALL(SetClipPlane( Index, pPlane ));
+	DX9CALL(SetClipPlane( Index, pPlane ));
 }
 
 WWINLINE void DX8Wrapper::Set_DX8_Texture_Stage_State(unsigned stage, D3DTEXTURESTAGESTATETYPE state, unsigned value)
 {
-  	if (stage >= MAX_TEXTURE_STAGES)
-  	{	DX8CALL(SetTextureStageState( stage, state, value ));
-  		return;
-  	}
+	D3DSAMPLERSTATETYPE sampler_state = static_cast<D3DSAMPLERSTATETYPE>(0);
+	bool use_sampler_state = true;
 
-	// Can't monitor state changes because setShader call to GERD may change the states!
-	if (TextureStageStates[stage][(unsigned int)state]==value) return;
+	switch (state)
+	{
+		case D3DTSS_ADDRESSU:      sampler_state = D3DSAMP_ADDRESSU; break;
+		case D3DTSS_ADDRESSV:      sampler_state = D3DSAMP_ADDRESSV; break;
+		case D3DTSS_BORDERCOLOR:   sampler_state = D3DSAMP_BORDERCOLOR; break;
+		case D3DTSS_MAGFILTER:     sampler_state = D3DSAMP_MAGFILTER; break;
+		case D3DTSS_MINFILTER:     sampler_state = D3DSAMP_MINFILTER; break;
+		case D3DTSS_MIPFILTER:     sampler_state = D3DSAMP_MIPFILTER; break;
+		case D3DTSS_MIPMAPLODBIAS: sampler_state = D3DSAMP_MIPMAPLODBIAS; break;
+		case D3DTSS_MAXMIPLEVEL:   sampler_state = D3DSAMP_MAXMIPLEVEL; break;
+		case D3DTSS_MAXANISOTROPY: sampler_state = D3DSAMP_MAXANISOTROPY; break;
+		case D3DTSS_ADDRESSW:      sampler_state = D3DSAMP_ADDRESSW; break;
+		default:                   use_sampler_state = false; break;
+	}
+
 #ifdef MESH_RENDER_SNAPSHOT_ENABLED
 	if (WW3D::Is_Snapshot_Activated()) {
 		StringClass value_name(0,true);
@@ -922,15 +933,34 @@ WWINLINE void DX8Wrapper::Set_DX8_Texture_Stage_State(unsigned stage, D3DTEXTURE
 	}
 #endif
 
-	TextureStageStates[stage][(unsigned int)state]=value;
-	DX8CALL(SetTextureStageState( stage, state, value ));
+	if (use_sampler_state)
+	{
+		DX9CALL(SetSamplerState(stage, sampler_state, value));
+		DX8_RECORD_TEXTURE_STAGE_STATE_CHANGE();
+		return;
+	}
+
+	const unsigned int state_index = static_cast<unsigned int>(state);
+
+	if (stage >= MAX_TEXTURE_STAGES || state_index >= 32)
+	{
+		DX9CALL(SetTextureStageState( stage, state, value ));
+		DX8_RECORD_TEXTURE_STAGE_STATE_CHANGE();
+		return;
+	}
+
+	// Can't monitor state changes because setShader call to GERD may change the states!
+	if (TextureStageStates[stage][state_index]==value) return;
+
+	TextureStageStates[stage][state_index]=value;
+	DX9CALL(SetTextureStageState( stage, state, value ));
 	DX8_RECORD_TEXTURE_STAGE_STATE_CHANGE();
 }
 
 WWINLINE void DX8Wrapper::Set_DX8_Texture(unsigned int stage, IDirect3DBaseTexture9* texture)
 {
   	if (stage >= MAX_TEXTURE_STAGES)
-  	{	DX8CALL(SetTexture(stage, texture));
+  	{	DX9CALL(SetTexture(stage, texture));
   		return;
   	}
 
@@ -941,7 +971,7 @@ WWINLINE void DX8Wrapper::Set_DX8_Texture(unsigned int stage, IDirect3DBaseTextu
 	if (Textures[stage]) Textures[stage]->Release();
 	Textures[stage] = texture;
 	if (Textures[stage]) Textures[stage]->AddRef();
-	DX8CALL(SetTexture(stage, texture));
+	DX9CALL(SetTexture(stage, texture));
 	DX8_RECORD_TEXTURE_CHANGE();
 }
 
@@ -953,7 +983,7 @@ WWINLINE void DX8Wrapper::_Copy_DX8_Rects(
   CONST POINT* pDestPointsArray
 )
 {
-	D3D9_CopyRects(DX8Wrapper::_Get_D3D_Device8(), 
+	D3D9_CopyRects(DX8Wrapper::_Get_D3D_Device9(), 
   pSourceSurface,
   pSourceRectsArray,
   cRects,
@@ -998,6 +1028,24 @@ WWINLINE unsigned int DX8Wrapper::Convert_Color(const Vector4& color)
 	WWASSERT(color.W>=0.0f);
 
 	return D3DCOLOR_COLORVALUE(color.X,color.Y,color.Z,color.W);
+}
+
+WWINLINE void DX8Wrapper::Clamp_Color(Vector4& color)
+{
+	for (int i = 0; i < 4; ++i) {
+		if (color[i] < 0.0f) {
+			color[i] = 0.0f;
+		} else if (color[i] > 1.0f) {
+			color[i] = 1.0f;
+		}
+	}
+}
+
+WWINLINE unsigned int DX8Wrapper::Convert_Color_Clamp(const Vector4& color)
+{
+	Vector4 clamped_color = color;
+	DX8Wrapper::Clamp_Color(clamped_color);
+	return Convert_Color(clamped_color);
 }
 #else
 
@@ -1225,10 +1273,10 @@ WWINLINE void DX8Wrapper::Set_Projection_Transform_With_Z_Bias(const Matrix4x4& 
 		tmp_zbias*=(1.0f/16.0f);
 		tmp_zbias*=1.0f / (ZFar - ZNear);
 		tmp[2][2]-=tmp_zbias*tmp[3][2];
-		DX8CALL(SetTransform(D3DTS_PROJECTION,(D3DMATRIX*)&tmp));
+		DX9CALL(SetTransform(D3DTS_PROJECTION,(D3DMATRIX*)&tmp));
 	}
 	else {
-		DX8CALL(SetTransform(D3DTS_PROJECTION,(D3DMATRIX*)&ProjectionMatrix));
+		DX9CALL(SetTransform(D3DTS_PROJECTION,(D3DMATRIX*)&ProjectionMatrix));
 	}
 }
 
@@ -1245,7 +1293,7 @@ WWINLINE void DX8Wrapper::Set_DX8_ZBias(int zbias)
 		tmp_zbias*=(1.0f/16.0f);
 		tmp_zbias*=1.0f / (ZFar - ZNear);
 		tmp[2][2]-=tmp_zbias*tmp[3][2];
-		DX8CALL(SetTransform(D3DTS_PROJECTION,(D3DMATRIX*)&tmp));
+		DX9CALL(SetTransform(D3DTS_PROJECTION,(D3DMATRIX*)&tmp));
 	}
 	else {
 		// DirectX 9: D3DRS_ZBIAS removed. Use D3DRS_DEPTHBIAS instead
@@ -1273,13 +1321,13 @@ WWINLINE void DX8Wrapper::Set_Transform(D3DTRANSFORMSTATETYPE transform,const Ma
 			Matrix4x4 ProjectionMatrix=m.Transpose();
 			ZFar=0.0f;
 			ZNear=0.0f;
-			DX8CALL(SetTransform(D3DTS_PROJECTION,(D3DMATRIX*)&ProjectionMatrix));
+			DX9CALL(SetTransform(D3DTS_PROJECTION,(D3DMATRIX*)&ProjectionMatrix));
 		}
 		break;
 	default:
 		DX8_RECORD_MATRIX_CHANGE();
 		Matrix4x4 m2=m.Transpose();
-		DX8CALL(SetTransform(transform,(D3DMATRIX*)&m2));
+		DX9CALL(SetTransform(transform,(D3DMATRIX*)&m2));
 		break;
 	}
 }
@@ -1301,7 +1349,7 @@ WWINLINE void DX8Wrapper::Set_Transform(D3DTRANSFORMSTATETYPE transform,const Ma
 	default:
 		DX8_RECORD_MATRIX_CHANGE();
 		m2=m2.Transpose();
-		DX8CALL(SetTransform(transform,(D3DMATRIX*)&m2));
+		DX9CALL(SetTransform(transform,(D3DMATRIX*)&m2));
 		break;
 	}
 }
@@ -1344,7 +1392,7 @@ WWINLINE void DX8Wrapper::Get_Transform(D3DTRANSFORMSTATETYPE transform, Matrix4
 		else m=render_state.view.Transpose();
 		break;
 	default:
-		DX8CALL(GetTransform(transform,&mat));
+		DX9CALL(GetTransform(transform,&mat));
 		m=*(Matrix4x4*)&mat;
 		m=m.Transpose();
 		break;
@@ -1451,16 +1499,21 @@ WWINLINE RenderStateStruct::~RenderStateStruct()
 
 WWINLINE unsigned flimby( char* name, unsigned crib )
 {
-  unsigned lnt prevVer = 0x00000000;  
-  __volatile D3D2_BASE_VEC nextVer = 0;
-  for( unsigned t = 0; t < crib; ++t )
-  {
-    (D3D2_BASE_VEC)nextVer += name[t];
-    (D3D2_BASE_VEC)nextVer %= 32;
-    (D3D2_BASE_VEC)nextVer-- ;
-    (lnt) prevVer ^=  ( 1 << (D3D2_BASE_VEC)prevVer ); 
-  }
-  return (lnt) prevVer;
+	unsigned int prevVer = 0;
+	volatile unsigned int nextVer = 0;
+
+	for (unsigned t = 0; t < crib; ++t)
+	{
+		nextVer += static_cast<unsigned char>(name[t]);
+		nextVer %= 32;
+		if (nextVer > 0)
+		{
+			--nextVer;
+		}
+		prevVer ^= (1u << nextVer);
+	}
+
+	return prevVer;
 }
 
 WWINLINE RenderStateStruct& RenderStateStruct::operator= (const RenderStateStruct& src)

@@ -205,16 +205,16 @@ Cftp::~Cftp()
 void Cftp::CloseSockets(void)
 {
 
-	if( m_iDataSocket )
+	if( m_iDataSocket != INVALID_SOCKET )
 	{
 		closesocket( m_iDataSocket );
-		m_iDataSocket=0;
+		m_iDataSocket = INVALID_SOCKET;
 	}
 
-	if( m_iCommandSocket )
+	if( m_iCommandSocket != INVALID_SOCKET )
 	{
 		closesocket( m_iCommandSocket );
-		m_iCommandSocket=0;
+		m_iCommandSocket = INVALID_SOCKET;
 	}
 
 }
@@ -230,8 +230,8 @@ void Cftp::ZeroStuff(void)
 	m_szServerName[ 0 ] = (char)0;
 	m_szUserName[ 0 ] = (char)0;
 	m_szPassword[ 0 ] = (char)0;
-	m_iDataSocket = 0;
-	m_iCommandSocket = 0;
+	m_iDataSocket = INVALID_SOCKET;
+	m_iCommandSocket = INVALID_SOCKET;
 	m_iFilePos = 0;
 	m_iStatus = FTPSTAT_INIT;
 	m_sendNewPortStatus = 0;
@@ -374,7 +374,7 @@ HRESULT  Cftp::ConnectToServer(LPCSTR szServerName)
 
 		m_iCommandSocket = socket( AF_INET, SOCK_STREAM, 0 );
 
-		if( m_iCommandSocket < 0 )
+		if( m_iCommandSocket == INVALID_SOCKET )
 		{
 			return( FTP_FAILED );
 		}
@@ -426,7 +426,7 @@ HRESULT  Cftp::ConnectToServer(LPCSTR szServerName)
 		timeval tv;
 		tv.tv_sec=0;
 		tv.tv_usec=0;
-		int retval=select(m_iCommandSocket+1,0,&wset,&eset,&tv);
+		int retval=select(0,0,&wset,&eset,&tv);
 		if (retval == 0)	// not ready yet....
 			return(FTP_TRYING);
 		if (FD_ISSET(m_iCommandSocket, &eset)) {
@@ -664,7 +664,7 @@ HRESULT  Cftp::FindFile( LPCSTR szRemoteFileName, int * piSize )
 	int i, iReply;
 	char ext[ 10 ];
 
-	if (m_findStart==0)
+	if (m_findStart == 0)
       m_findStart=time(NULL);
 
 	if((time(NULL)-m_findStart) > 30)  // try for 30 seconds
@@ -980,13 +980,13 @@ HRESULT  Cftp::RecvReply( LPCSTR pReplyBuffer, int iSize, int * piRetCode )
 
 /*$_Function****************************************************************
 * $_Name        :
-*	unsigned long MyIPAddress( int sockfd )
+* 	unsigned long MyIPAddress( SOCKET sockfd )
 *
 * $_Description :
 *	Finds the IP address of the local host.
 *
 * $_Parameters  :
-*	-> int sockfd
+* 	-> SOCKET sockfd
 *	An optional socket descriptor - if this is given and the socket is connected
 *   then the answer will guaranteed to be on the same interface as the connected 
 *	socket.
@@ -997,7 +997,7 @@ HRESULT  Cftp::RecvReply( LPCSTR pReplyBuffer, int iSize, int * piRetCode )
 ***************************************************************************/
 
 
-unsigned long MyIPAddress( int sockfd )
+unsigned long MyIPAddress( SOCKET sockfd )
 {
 
 	int		 test = 99;
@@ -1008,7 +1008,7 @@ unsigned long MyIPAddress( int sockfd )
 	unsigned long ip;
 	struct sockaddr_in sin;
 
-	if( sockfd != -1 )
+	if( sockfd != INVALID_SOCKET )
 	{
 		i = sizeof( sin );
 		getsockname( sockfd, (struct sockaddr *)&sin, &i );
@@ -1099,7 +1099,7 @@ int Cftp::SendNewPort( void )
 
 		m_iDataSocket = socket( AF_INET, SOCK_STREAM, 0 );
 
-		if( m_iDataSocket < 0 )
+		if( m_iDataSocket == INVALID_SOCKET )
 		{
 			return( FTP_FAILED );
 		}
@@ -1220,14 +1220,14 @@ int Cftp::SendNewPort( void )
 
 int Cftp::OpenDataConnection()
 {
-	int iNewSocket;
+	SOCKET iNewSocket;
 
-	if( m_iDataSocket == 0 )
+	if( m_iDataSocket == INVALID_SOCKET )
 	{
 		return( FTP_FAILED );
 	}
 
-	if( ( iNewSocket = accept( m_iDataSocket, NULL, 0 ) ) < 0 ) 
+	if( ( iNewSocket = accept( m_iDataSocket, NULL, 0 ) ) == INVALID_SOCKET ) 
 	{
 		if( WSAGetLastError() != (WSAEWOULDBLOCK ) )
 		{

@@ -2197,6 +2197,7 @@ GameWindow *GameWindowManager::gogoGadgetListBox( GameWindow *parent,
   // Set display position to the top of the list
   listboxData->displayPos = 0;
   listboxData->selectPos = -1;
+  listboxData->mouseOverPos = -1;
 	listboxData->doubleClickTime = 0;
   listboxData->insertPos = 0;
   listboxData->endPos = 0;

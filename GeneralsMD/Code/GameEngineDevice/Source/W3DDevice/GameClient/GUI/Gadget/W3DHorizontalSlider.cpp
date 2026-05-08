@@ -53,6 +53,11 @@
 #include "W3DDevice/GameClient/W3DGadget.h"
 #include "W3DDevice/GameClient/W3DDisplay.h"
 
+#ifdef BitTest
+#undef BitTest
+#endif
+#define BitTest(x, i) (((x) & (i)) != 0)
+
 // DEFINES ////////////////////////////////////////////////////////////////////
 
 // PRIVATE TYPES //////////////////////////////////////////////////////////////

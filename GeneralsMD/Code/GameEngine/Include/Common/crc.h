@@ -85,25 +85,23 @@ public:
     }
     */
 
-    // ASM version, verified by comparing resulting data with C++ version data
-    unsigned *crcPtr=&crc;
-    _asm
+    // Use portable C++ here so Release x64 does not rely on x86 inline assembly.
+	  for (UnsignedByte *uintPtr=(UnsignedByte *)buf;len>0;len--,uintPtr++)
     {
-      mov esi,[buf]
-      mov ecx,[len]
-      dec ecx
-      mov edi,[crcPtr]
-      mov ebx,dword ptr [edi]
-      xor eax,eax
-    lp:
-      mov al,byte ptr [esi]
-      shl ebx,1
-      inc esi
-      adc ebx,eax
-      dec ecx
-      jns lp
-      mov dword ptr [edi],ebx
-    };
+		int hibit;
+		if (crc & 0x80000000)
+      {
+			hibit = 1;
+		}
+      else
+      {
+			hibit = 0;
+		}
+
+		crc <<= 1;
+		crc += *uintPtr;
+		crc += hibit;
+    }
   }
 
   /// Clears the CRC to 0

@@ -29,19 +29,23 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Profile|x64'"><TargetName>GameEngineDeviceProfile</TargetName></PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>$(ProjectDir)Include;$(ProjectDir)..\GameEngine\Include;$(ProjectDir)..\Libraries\Include;$(ProjectDir)..\Libraries\Source\Compression;$(ProjectDir)..\Libraries\Source\WWVegas;$(ProjectDir)..\Libraries\Source\WWVegas\WWLib;$(ProjectDir)..\Libraries\Source\WWVegas\WWMath;$(ProjectDir)..\Libraries\Source\WWVegas\WWDebug;$(ProjectDir)..\Libraries\Source\WWVegas\WWSaveLoad;$(ProjectDir)..\Libraries\Source\WWVegas\WW3D2;$(ProjectDir)..\Libraries\Include\Granny;$(ProjectDir)Include\VideoDevice\Bink;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)Include;$(ProjectDir)..\Main;$(ProjectDir)..\GameEngine\Include;$(ProjectDir)..\Libraries\Include;$(ProjectDir)..\Libraries\Source;$(ProjectDir)..\Libraries\Source\Benchmark;$(ProjectDir)..\Libraries\Source\Compression;$(ProjectDir)..\Libraries\Source\WWVegas;$(ProjectDir)..\Libraries\Source\WWVegas\WWLib;$(ProjectDir)..\Libraries\Source\WWVegas\WWMath;$(ProjectDir)..\Libraries\Source\WWVegas\WWDebug;$(ProjectDir)..\Libraries\Source\WWVegas\WWSaveLoad;$(ProjectDir)..\Libraries\Source\WWVegas\WW3D2;$(ProjectDir)..\Libraries\Include\Granny;$(ProjectDir)..\Libraries\DirectX\Include;$(ProjectDir)..\..\..\Run\MSS;$(ProjectDir)..\..\..\Dependencies\Modern\openal-soft\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <WarningLevel>Level3</WarningLevel>
       <TreatWarningAsError>false</TreatWarningAsError>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
-      <LanguageStandard>stdcpp14</LanguageStandard><PreprocessorDefinitions>WIN32;_WINDOWS;_SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <LanguageStandard>stdcpp14</LanguageStandard>
+      <PreprocessorDefinitions>WIN64;_WIN64;_WINDOWS;_SILENCE_STDEXT_HASH_DEPRECATION_WARNINGS;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;_WINSOCK_DEPRECATED_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <ObjectFileName>$(ProjectDir)obj\$(Configuration)\x64\</ObjectFileName>
       <ProgramDataBaseFileName>$(ProjectDir)obj\$(Configuration)\x64\</ProgramDataBaseFileName>
-      <AdditionalOptions>/FS %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/FS /wd4005 /wd4267 /wd4018 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Internal|x64' Or '$(Configuration)|$(Platform)'=='Profile|x64' Or '$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile><RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary><Optimization>MaxSpeed</Optimization></ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Internal|x64'">
+    <ClCompile><PreprocessorDefinitions>_INTERNAL;%(PreprocessorDefinitions)</PreprocessorDefinitions></ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Source\**\*.cpp" />

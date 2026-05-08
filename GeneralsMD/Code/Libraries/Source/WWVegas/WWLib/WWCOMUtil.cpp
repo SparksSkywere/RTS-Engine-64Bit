@@ -184,7 +184,9 @@ bool RegisterCOMServer(const char* dllName)
 
 	if (hInst != NULL)
 		{
-		FARPROC regServerProc = GetProcAddress(hInst, "DllRegisterServer");
+		typedef HRESULT (STDAPICALLTYPE *DllRegisterServerProc)(void);
+		DllRegisterServerProc regServerProc = reinterpret_cast<DllRegisterServerProc>(
+			GetProcAddress(hInst, "DllRegisterServer"));
 
 		if (regServerProc != NULL)
 			{
@@ -223,7 +225,9 @@ bool UnregisterCOMServer(const char* dllName)
 
 	if (hInst != NULL)
 		{
-		FARPROC unregServerProc = GetProcAddress(hInst, "DllUnregisterServer");
+		typedef HRESULT (STDAPICALLTYPE *DllUnregisterServerProc)(void);
+		DllUnregisterServerProc unregServerProc = reinterpret_cast<DllUnregisterServerProc>(
+			GetProcAddress(hInst, "DllUnregisterServer"));
 
 		if (unregServerProc != NULL)
 			{
